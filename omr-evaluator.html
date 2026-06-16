@@ -164,6 +164,22 @@
         .booklet-verify { display:none; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:bold; margin-bottom:10px; }
         .bv-ok  { background:#eafaf1; color:#27ae60; border:1px solid #82e0aa; display:block; }
         .bv-err { background:#fdedec; color:#e74c3c; border:1px solid #f1948a; display:block; }
+
+        /* ========== CROP MODAL ========== */
+        #cropModal { display:none; position:fixed; inset:0; background:#111; z-index:10000; flex-direction:column; }
+        #cropModal.open { display:flex; }
+        #cropCanvas { display:block; touch-action:none; cursor:crosshair; max-width:100%; max-height:calc(100vh - 110px); margin:auto; }
+        .crop-topbar { background:#1e272e; color:white; padding:10px 14px; text-align:center; font-size:13px; font-weight:bold; flex-shrink:0; }
+        .crop-bottombar { background:#1e272e; padding:10px 14px; display:flex; gap:8px; justify-content:center; flex-shrink:0; flex-wrap:wrap; }
+        .crop-btn { padding:10px 18px; border:none; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer; }
+        .crop-btn-ok     { background:#10ac84; color:white; }
+        .crop-btn-reset  { background:#e67e22; color:white; }
+        .crop-btn-cancel { background:#636e72; color:white; }
+        .crop-info { background:#2d3436; color:#00d2d3; border-radius:6px; padding:6px 12px; font-size:12px; text-align:center; margin:0 auto; }
+
+        /* auto-crop preview badge */
+        .crop-badge { display:none; position:absolute; top:8px; left:8px; background:rgba(16,172,132,0.92); color:white; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:bold; z-index:5; pointer-events:none; }
+        .cap-preview { position:relative; }
     </style>
 </head>
 <body>
@@ -186,6 +202,19 @@
     <div class="cam-bottombar">
         <button class="cam-btn cam-btn-capture" onclick="doCaptureFromCam()">📸 ক্যাপচার</button>
         <button class="cam-btn cam-btn-close"   onclick="closeCam()">✕ বন্ধ</button>
+    </div>
+</div>
+
+
+<!-- ========== CROP MODAL ========== -->
+<div id="cropModal">
+    <div class="crop-topbar" id="cropTopBar">✂️ ক্রপ এলাকা টেনে বাছুন — অথবা অটো ক্রপ ব্যবহার করুন</div>
+    <canvas id="cropCanvas"></canvas>
+    <div class="crop-bottombar">
+        <div class="crop-info" id="cropInfo">এলাকা নির্বাচন করুন</div>
+        <button class="crop-btn crop-btn-ok"     onclick="applyCrop()">✅ এই অংশ ক্রপ করুন</button>
+        <button class="crop-btn crop-btn-reset"  onclick="resetCropSelection()">🔄 রিসেট</button>
+        <button class="crop-btn crop-btn-cancel" onclick="closeCropModal()">✕ বাতিল</button>
     </div>
 </div>
 
@@ -255,6 +284,8 @@
     <div class="cap-preview" id="capPreview">
         <img id="prevImg" src="" alt="OMR">
         <button class="remove-btn" onclick="removeImg()">✕</button>
+        <span class="crop-badge" id="cropBadge">✂️ অটো ক্রপ হয়েছে</span>
+        <button style="position:absolute;bottom:8px;right:8px;background:rgba(46,134,222,0.9);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;" onclick="openCropModal()">✂️ ম্যানুয়াল ক্রপ</button>
     </div>
 
     <!-- আপলোড -->
@@ -312,6 +343,9 @@
             <div><span>সঠিক (×১)</span><span id="rCS" style="color:#10ac84;font-weight:bold;">+0</span></div>
             <div><span id="rNL">ভুল (×০.২৫)</span><span id="rWS" style="color:#ee5253;font-weight:bold;">-0</span></div>
         </div>
+        <!-- প্রশ্নভিত্তিক রিভিউ লিস্ট -->
+        <div class="review-list" id="reviewList" style="margin-bottom:14px;"></div>
+
         <!-- OMR Visual Result Sheet -->
         <div class="omr-visual-result" id="omrVisualResult">
             <h4>📋 OMR শিট ভিজ্যুয়াল রিভিউ</h4>
@@ -510,16 +544,19 @@ function pixelScanOMR(base64Image) {
         const rowsPerCol = Math.ceil(total / numCols);
 
         // OMR answer bubble area (image এর নিচের ~60%, সম্পূর্ণ width)
-        const areaTop    = Math.floor(H * 0.33);  // header skip করি
-        const areaHeight = Math.floor(H * 0.62);
-        const areaLeft   = Math.floor(W * 0.02);
-        const areaWidth  = Math.floor(W * 0.96);
+        // OMR bubble area — header (booklet no., exam name) বাদ দিয়ে শুধু bubble এলাকা
+        // crop করার পরে ছবি আরো tight হয় তাই dynamic detection করি
+        const areaTop    = Math.floor(H * 0.28);  // ~উপরের 28% skip (হেডার)
+        const areaHeight = Math.floor(H * 0.68);  // নিচের 68% হলো bubble এলাকা
+        const areaLeft   = Math.floor(W * 0.01);
+        const areaWidth  = Math.floor(W * 0.98);
 
         const colW  = Math.floor(areaWidth / numCols);
         const rowH  = Math.floor(areaHeight / rowsPerCol);
-        const bubW  = Math.floor(colW * 0.13);
-        const bubH  = Math.floor(rowH * 0.55);
-        const threshold = 0.16;
+        // bubble size: column width এর ~12%, row height এর 50%
+        const bubW  = Math.max(8, Math.floor(colW * 0.12));
+        const bubH  = Math.max(8, Math.floor(rowH * 0.50));
+        const threshold = 0.13;  // 13% dark pixel = filled bubble
 
         const result = new Array(total).fill(-1);
 
@@ -530,9 +567,10 @@ function pixelScanOMR(base64Image) {
                 if (qIdx >= total) continue;
 
                 // প্রতি column-এর শুরু + question number label skip (প্রায় 18% width)
-                const baseX = areaLeft + col * colW + Math.floor(colW * 0.20);
-                const baseY = areaTop  + row * rowH + Math.floor(rowH * 0.15);
-                const stepX = Math.floor(colW * 0.185);  // A B C D এর spacing
+                // প্রতি column: ~20% question label, তারপর A B C D bubbles
+                const baseX = areaLeft + col * colW + Math.floor(colW * 0.22);
+                const baseY = areaTop  + row * rowH + Math.floor(rowH * 0.12);
+                const stepX = Math.floor(colW * 0.18);  // A B C D spacing
 
                 let maxDark = threshold;
                 let chosen  = -1;
@@ -870,14 +908,72 @@ function dropFile(e) {
 function readFile(f) {
     const r = new FileReader();
     r.onload = ev => {
-        status('✂️ ছবি crop হচ্ছে...', 'info');
+        rawCapturedData = ev.target.result;
+        status('✂️ ছবি লোড হয়েছে — কোণ চিহ্ন খুঁজছি...', 'info');
+        // প্রথমে auto crop চেষ্টা করো, তারপর manual option দেখাও
         smartCropAndProcess(ev.target.result);
     };
     r.readAsDataURL(f);
 }
 
-/* Smart Auto-Crop: ছবির চারপাশের সাদা/খালি জায়গা কেটে শুধু OMR sheet রাখে */
+/* ===== CORNER MARKER DETECTION & CROP SYSTEM =====
+   OMR PDF-এ চার কোণায় L-shape marker আছে (32px, 4px border, 6px থেকে)।
+   এই marker খুঁজে সেখান থেকে crop করা হবে।
+*/
+
+// রাখো original raw image — manual crop-এর জন্য
+let rawCapturedData = null;
+// crop modal state
+let cropImg = null, cropCanvas = null, cropCtx = null;
+let cropSel = null, cropDragging = false, cropStart = null;
+let cropScale = 1;
+
+/* ---- L-shape corner marker detector ---- */
+function detectCornerMarkers(px, W, H) {
+    /* OMR PDF-এর corner: top-left, top-right, bottom-left, bottom-right
+       প্রতিটি corner এ ~32x32px L-shape কালো marker আছে।
+       Strategy: প্রতিটি corner region-এ horizontal+vertical dark line খুঁজি */
+
+    function darkRatio(x, y, w, h) {
+        let dark = 0, total = 0;
+        for (let ry = y; ry < Math.min(y+h, H); ry++) {
+            for (let rx = x; rx < Math.min(x+w, W); rx++) {
+                const i4 = (ry*W+rx)*4;
+                if ((0.299*px[i4]+0.587*px[i4+1]+0.114*px[i4+2]) < 80) dark++;
+                total++;
+            }
+        }
+        return total ? dark/total : 0;
+    }
+
+    // Search zone: ছবির প্রথম/শেষ 20% area
+    const ZX = Math.floor(W * 0.20), ZY = Math.floor(H * 0.20);
+    const SZ = 8; // scan step size
+
+    function findMarkerIn(x0, x1, y0, y1, preferX, preferY) {
+        // x0..x1, y0..y1 এর মধ্যে সবচেয়ে dark dense spot খুঁজি (16x16 window)
+        const WN = 16;
+        let best = 0, bx = preferX, by = preferY;
+        for (let y = y0; y < y1 - WN; y += SZ) {
+            for (let x = x0; x < x1 - WN; x += SZ) {
+                const d = darkRatio(x, y, WN, WN);
+                if (d > best) { best = d; bx = x + WN/2; by = y + WN/2; }
+            }
+        }
+        return best > 0.25 ? { x: bx, y: by, conf: best } : null;
+    }
+
+    const tl = findMarkerIn(0,    ZX,    0,    ZY,    20,    20);
+    const tr = findMarkerIn(W-ZX, W,     0,    ZY,    W-20,  20);
+    const bl = findMarkerIn(0,    ZX,    H-ZY, H,     20,    H-20);
+    const br = findMarkerIn(W-ZX, W,     H-ZY, H,     W-20,  H-20);
+
+    return { tl, tr, bl, br };
+}
+
+/* ---- Smart Crop with corner detection ---- */
 function smartCropAndProcess(dataUrl) {
+    rawCapturedData = dataUrl;  // raw সরিয়ে রাখো manual crop-এর জন্য
     const img = new Image();
     img.onload = () => {
         const W = img.naturalWidth, H = img.naturalHeight;
@@ -887,58 +983,200 @@ function smartCropAndProcess(dataUrl) {
         ctx.drawImage(img, 0, 0);
         const px = ctx.getImageData(0, 0, W, H).data;
 
-        // প্রতিটি pixel চেক — যেগুলো "non-white" সেগুলোর boundary বের করো
-        // threshold: R<240 OR G<240 OR B<240 হলে content pixel
-        let minX=W, minY=H, maxX=0, maxY=0;
-        const THR = 235; // white threshold
-        for (let y=0; y<H; y++) {
-            for (let x=0; x<W; x++) {
-                const idx4 = (y*W+x)*4;
-                const r=px[idx4], g=px[idx4+1], b=px[idx4+2];
-                if (r<THR || g<THR || b<THR) {
-                    if (x<minX) minX=x;
-                    if (x>maxX) maxX=x;
-                    if (y<minY) minY=y;
-                    if (y>maxY) maxY=y;
+        // Step 1: Corner marker detection
+        const corners = detectCornerMarkers(px, W, H);
+        const found = [corners.tl, corners.tr, corners.bl, corners.br].filter(Boolean).length;
+
+        let cx, cy, cw, ch, method;
+
+        if (found >= 3) {
+            // কমপক্ষে ৩টা corner পেলে সেখান থেকে crop করো
+            const xs = [corners.tl?.x, corners.tr?.x, corners.bl?.x, corners.br?.x].filter(Number.isFinite);
+            const ys = [corners.tl?.y, corners.tr?.y, corners.bl?.y, corners.br?.y].filter(Number.isFinite);
+            let minX = Math.min(...xs), maxX = Math.max(...xs);
+            let minY = Math.min(...ys), maxY = Math.max(...ys);
+            // marker center থেকে সামান্য বাইরে crop করো (marker নিজেও ধরতে)
+            const padX = Math.round(W * 0.01);
+            const padY = Math.round(H * 0.01);
+            cx = Math.max(0, minX - padX - 20);
+            cy = Math.max(0, minY - padY - 20);
+            cw = Math.min(W, maxX + padX + 20) - cx;
+            ch = Math.min(H, maxY + padY + 20) - cy;
+            method = `🎯 কোণ চিহ্ন থেকে crop (${found}/4 কোণ পেয়েছি)`;
+        } else {
+            // Fallback: row/col dark density
+            const rowDark = new Float32Array(H);
+            const colDark = new Float32Array(W);
+            for (let y = 0; y < H; y++) {
+                let cnt = 0;
+                for (let x = 0; x < W; x++) {
+                    const i4 = (y*W+x)*4;
+                    const gray = 0.299*px[i4]+0.587*px[i4+1]+0.114*px[i4+2];
+                    if (gray < 180) { cnt++; colDark[x]++; }
                 }
+                rowDark[y] = cnt / W;
             }
+            for (let x = 0; x < W; x++) colDark[x] /= H;
+            let minY=-1,maxY=-1,minX=-1,maxX=-1;
+            for (let y=0;y<H;y++) if(rowDark[y]>0.002){if(minY<0)minY=y;maxY=y;}
+            for (let x=0;x<W;x++) if(colDark[x]>0.002){if(minX<0)minX=x;maxX=x;}
+            if (minX<0||minY<0||maxX-minX<W*0.3||maxY-minY<H*0.3) {
+                finishImageLoad(dataUrl, false, 'অটো crop করা যায়নি — আসল ছবি ব্যবহার হচ্ছে');
+                return;
+            }
+            const padX=Math.round(W*0.01), padY=Math.round(H*0.01);
+            cx=Math.max(0,minX-padX); cy=Math.max(0,minY-padY);
+            cw=Math.min(W,maxX+padX+1)-cx; ch=Math.min(H,maxY+padY+1)-cy;
+            method = '📐 কন্টেন্ট এলাকা থেকে crop';
         }
 
-        // কোনো content না পেলে original রাখো
-        if (maxX <= minX || maxY <= minY) {
-            finishImageLoad(dataUrl);
+        if (cw < W*0.35 || ch < H*0.35) {
+            finishImageLoad(dataUrl, false, 'ছোট crop এড়ানো হয়েছে — আসল ছবি ব্যবহার হচ্ছে');
             return;
         }
 
-        // ৩% padding যোগ করো crop করা ছবিতে
-        const padX = Math.round(W * 0.03);
-        const padY = Math.round(H * 0.02);
-        const cx = Math.max(0, minX - padX);
-        const cy = Math.max(0, minY - padY);
-        const cw = Math.min(W, maxX + padX) - cx;
-        const ch = Math.min(H, maxY + padY) - cy;
+        // crop %
+        const pctW = Math.round(cw/W*100), pctH = Math.round(ch/H*100);
+        const cropNote = `${method} — ${pctW}% × ${pctH}% রাখা হয়েছে`;
 
-        // crop করা অংশ নতুন canvas-এ আঁকো
-        const cropCanvas = document.createElement('canvas');
-        cropCanvas.width  = cw;
-        cropCanvas.height = ch;
-        cropCanvas.getContext('2d').drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
-        const cropped = cropCanvas.toDataURL('image/jpeg', 0.93);
-        finishImageLoad(cropped);
+        const cropC = document.createElement('canvas');
+        cropC.width = cw; cropC.height = ch;
+        cropC.getContext('2d').drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
+        finishImageLoad(cropC.toDataURL('image/jpeg', 0.93), true, cropNote);
     };
     img.src = dataUrl;
 }
 
-function finishImageLoad(dataUrl) {
+/* ===== MANUAL CROP MODAL ===== */
+function openCropModal(src) {
+    const source = src || rawCapturedData;
+    if (!source) return;
+    const modal = document.getElementById('cropModal');
+    cropCanvas = document.getElementById('cropCanvas');
+    cropCtx = cropCanvas.getContext('2d');
+    cropSel = null; cropDragging = false; cropStart = null;
+
+    cropImg = new Image();
+    cropImg.onload = () => {
+        // fit to screen
+        const maxW = window.innerWidth - 4;
+        const maxH = window.innerHeight - 120;
+        cropScale = Math.min(maxW / cropImg.width, maxH / cropImg.height, 1);
+        cropCanvas.width  = Math.round(cropImg.width  * cropScale);
+        cropCanvas.height = Math.round(cropImg.height * cropScale);
+        drawCropCanvas();
+        modal.classList.add('open');
+    };
+    cropImg.src = source;
+
+    // touch/mouse events
+    cropCanvas.onmousedown  = cropPointerDown;
+    cropCanvas.onmousemove  = cropPointerMove;
+    cropCanvas.onmouseup    = cropPointerUp;
+    cropCanvas.ontouchstart = e => { e.preventDefault(); cropPointerDown(e.touches[0]); };
+    cropCanvas.ontouchmove  = e => { e.preventDefault(); cropPointerMove(e.touches[0]); };
+    cropCanvas.ontouchend   = e => { e.preventDefault(); cropPointerUp(e.changedTouches[0]); };
+}
+
+function closeCropModal() { document.getElementById('cropModal').classList.remove('open'); }
+
+function canvasXY(e) {
+    const rect = cropCanvas.getBoundingClientRect();
+    return { x: (e.clientX - rect.left) * (cropCanvas.width / rect.width),
+             y: (e.clientY - rect.top)  * (cropCanvas.height / rect.height) };
+}
+function cropPointerDown(e) {
+    const p = canvasXY(e);
+    cropStart = p; cropSel = { x:p.x, y:p.y, w:0, h:0 }; cropDragging = true;
+}
+function cropPointerMove(e) {
+    if (!cropDragging || !cropStart) return;
+    const p = canvasXY(e);
+    cropSel = { x: Math.min(cropStart.x, p.x), y: Math.min(cropStart.y, p.y),
+                w: Math.abs(p.x - cropStart.x), h: Math.abs(p.y - cropStart.y) };
+    drawCropCanvas();
+    const rw = Math.round(cropSel.w / cropScale), rh = Math.round(cropSel.h / cropScale);
+    document.getElementById('cropInfo').textContent = `নির্বাচিত: ${rw} × ${rh} px`;
+}
+function cropPointerUp(e) { cropDragging = false; if (cropSel && cropSel.w < 10) cropSel = null; }
+
+function drawCropCanvas() {
+    cropCtx.drawImage(cropImg, 0, 0, cropCanvas.width, cropCanvas.height);
+    if (!cropSel || cropSel.w < 2) return;
+    // dim outside
+    cropCtx.fillStyle = 'rgba(0,0,0,0.48)';
+    cropCtx.fillRect(0, 0, cropCanvas.width, cropSel.y);
+    cropCtx.fillRect(0, cropSel.y + cropSel.h, cropCanvas.width, cropCanvas.height - cropSel.y - cropSel.h);
+    cropCtx.fillRect(0, cropSel.y, cropSel.x, cropSel.h);
+    cropCtx.fillRect(cropSel.x + cropSel.w, cropSel.y, cropCanvas.width - cropSel.x - cropSel.w, cropSel.h);
+    // border
+    cropCtx.strokeStyle = '#00d2d3'; cropCtx.lineWidth = 2; cropCtx.setLineDash([6,3]);
+    cropCtx.strokeRect(cropSel.x, cropSel.y, cropSel.w, cropSel.h);
+    // handles
+    cropCtx.setLineDash([]);
+    [[cropSel.x,cropSel.y],[cropSel.x+cropSel.w,cropSel.y],
+     [cropSel.x,cropSel.y+cropSel.h],[cropSel.x+cropSel.w,cropSel.y+cropSel.h]].forEach(([hx,hy])=>{
+        cropCtx.fillStyle='#00d2d3'; cropCtx.beginPath();
+        cropCtx.arc(hx,hy,5,0,Math.PI*2); cropCtx.fill();
+    });
+}
+
+function resetCropSelection() {
+    cropSel = null;
+    if (cropImg) drawCropCanvas();
+    document.getElementById('cropInfo').textContent = 'এলাকা নির্বাচন করুন';
+}
+
+function applyCrop() {
+    if (!cropSel || cropSel.w < 10 || cropSel.h < 10) {
+        // কিছু select না হলে পুরো ছবি ব্যবহার করো
+        if (cropImg) {
+            const fc = document.createElement('canvas');
+            fc.width = cropImg.width; fc.height = cropImg.height;
+            fc.getContext('2d').drawImage(cropImg, 0, 0);
+            closeCropModal();
+            finishImageLoad(fc.toDataURL('image/jpeg', 0.93), true, 'সম্পূর্ণ ছবি ব্যবহার হচ্ছে');
+        }
+        return;
+    }
+    // canvas px → real image px
+    const rx = Math.round(cropSel.x / cropScale);
+    const ry = Math.round(cropSel.y / cropScale);
+    const rw = Math.round(cropSel.w / cropScale);
+    const rh = Math.round(cropSel.h / cropScale);
+    const fc = document.createElement('canvas');
+    fc.width = rw; fc.height = rh;
+    fc.getContext('2d').drawImage(cropImg, rx, ry, rw, rh, 0, 0, rw, rh);
+    closeCropModal();
+    const pctW = Math.round(rw/cropImg.width*100), pctH = Math.round(rh/cropImg.height*100);
+    finishImageLoad(fc.toDataURL('image/jpeg', 0.93), true, `✂️ ম্যানুয়াল crop — ${pctW}%×${pctH}% নির্বাচিত`);
+}
+
+function finishImageLoad(dataUrl, wasCropped=false, cropNote='') {
     capturedData = dataUrl;
     showPreview(capturedData);
     document.getElementById('uploadBox').style.display = 'none';
+
+    // crop badge দেখাও
+    const badge = document.getElementById('cropBadge');
+    if (badge) {
+        if (wasCropped && cropNote) {
+            badge.textContent = cropNote;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
     if (questions.length > 0) {
         document.getElementById('bubbleSec').style.display = 'block';
         document.getElementById('submitBtn').style.display = 'block';
         document.getElementById('bubbleSec').scrollIntoView({ behavior: 'smooth' });
     }
-    status('✅ ছবি crop ও আপলোড সফল! AI স্ক্যান শুরু হচ্ছে...', 'success');
+    const msg = wasCropped && cropNote
+        ? '✅ ' + cropNote + ' | AI স্ক্যান শুরু হচ্ছে...'
+        : '✅ ছবি লোড সফল! AI স্ক্যান শুরু হচ্ছে...';
+    status(msg, 'success');
     if (questions.length > 0) aiScanOMR(capturedData);
 }
 function showPreview(src) {
@@ -947,8 +1185,11 @@ function showPreview(src) {
 }
 function removeImg() {
     capturedData = null;
+    rawCapturedData = null;
     document.getElementById('capPreview').style.display = 'none';
     document.getElementById('prevImg').src = '';
+    const badge = document.getElementById('cropBadge');
+    if (badge) badge.style.display = 'none';
     document.getElementById('bubbleSec').style.display = 'none';
     document.getElementById('submitBtn').style.display = 'none';
     document.getElementById('resultBox').style.display = 'none';
