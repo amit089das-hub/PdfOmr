@@ -1,0 +1,900 @@
+/* ==========================================================================
+   ১. গ্লোবাল এবং লেআউট স্টাইল (Global & Layout Styles)
+   ========================================================================== */
+body { 
+    font-family: Arial, sans-serif; 
+    margin: 0; 
+    padding: 0; 
+    display: flex; 
+    flex-direction: row; 
+    background-color: #f5f7fa; 
+    color: #2c3e50; 
+}
+
+.sidebar { 
+    width: 340px; 
+    background: #1e272e; 
+    color: #f5f6fa; 
+    padding: 20px; 
+    height: 100vh; 
+    box-sizing: border-box; 
+    overflow-y: auto; 
+    position: fixed; 
+    z-index: 100; 
+}
+
+.sidebar h2 { 
+    margin-top: 0; 
+    font-size: 18px; 
+    border-bottom: 2px solid #341f97; 
+    padding-bottom: 10px; 
+    color: #00d2d3; 
+}
+
+.form-group { 
+    margin-bottom: 18px; 
+}
+
+.form-group label { 
+    display: block; 
+    margin-bottom: 6px; 
+    font-size: 13px; 
+    font-weight: bold; 
+}
+
+.form-group input[type="text"], 
+.form-group select { 
+    width: 100%; 
+    padding: 10px; 
+    box-sizing: border-box; 
+    border-radius: 4px; 
+    border: 1px solid #341f97; 
+    background: #2f3640; 
+    color: white; 
+    font-size: 14px; 
+}
+
+.row-group { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    cursor: pointer; 
+    font-size: 14px; 
+}
+
+.intro-settings { 
+    background: #2f3640; 
+    padding: 12px; 
+    border-radius: 4px; 
+    margin-top: -10px; 
+    margin-bottom: 15px; 
+}
+
+/* বাটন স্টাইল */
+.generate-btn { 
+    width: 100%; 
+    padding: 12px; 
+    background-color: #10ac84; 
+    color: white; 
+    border: none; 
+    border-radius: 4px; 
+    font-size: 15px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    margin-bottom: 10px; 
+    transition: 0.2s; 
+}
+
+.generate-btn:hover { 
+    background-color: #0fa27b; 
+}
+
+.print-btn { 
+    width: 100%; 
+    padding: 12px; 
+    background-color: #2e86de; 
+    color: white; 
+    border: none; 
+    border-radius: 4px; 
+    font-size: 15px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: 0.2s; 
+}
+
+.print-btn:hover { 
+    background-color: #2475c7; 
+}
+
+/* মেইন কন্টেন্ট এরিয়া */
+.main-content { 
+    margin-left: 340px; 
+    padding: 30px; 
+    flex-grow: 1; 
+    box-sizing: border-box; 
+}
+
+.print-container { 
+    background: white; 
+    min-height: 297mm; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    padding: 0; 
+    box-sizing: border-box; 
+}
+
+
+/* ==========================================================================
+   ২. কোশ্চেন পেপার ফরম্যাটিং (Question Paper Design)
+   ========================================================================== */
+.exam-paper-page { 
+    padding: 25px; 
+    background-color: #fff; 
+    color: #000; 
+}
+
+.exam-header { 
+    text-align: center; 
+    margin-bottom: 10px; 
+}
+
+.exam-header h1 { 
+    margin: 0; 
+    font-size: 26px; 
+    color: #1e272e; 
+    text-transform: uppercase; 
+}
+
+.exam-header h2 { 
+    margin: 5px 0; 
+    font-size: 18px; 
+    color: #57606f; 
+}
+
+.exam-meta { 
+    display: flex; 
+    justify-content: space-around; 
+    margin-top: 10px; 
+    font-size: 14px; 
+    font-weight: bold; 
+}
+
+.header-divider { 
+    border: 0; 
+    border-top: 2px solid #000; 
+    margin-bottom: 15px; 
+}
+
+.instructions-box { 
+    border: 1px solid #000; 
+    padding: 8px 12px; 
+    font-size: 13px; 
+    margin-bottom: 20px; 
+    background-color: #f9f9f9; 
+    line-height: 1.4; 
+}
+
+/* ২টি কলামে সুন্দর প্রশ্ন সাজানোর লেআউট (মাঝখানে দাগ সহ) */
+/* ২টি কলাম বিশিষ্ট আধুনিক লেআউট */
+.questions-grid { 
+    column-count: 2;          /* ২ কলামে ভাগ হবে */
+    column-gap: 40px;          /* মাঝখানের ফাঁকা জায়গা */
+    column-rule: 1px solid #000000; /* মাঝখানের সোজা কালো দাগ (আগের ::before এর আর দরকার নেই) */
+    position: relative;
+}
+
+/* আগের ::before স্টাইলটি সম্পূর্ণ মুছে দিন বা কমেন্ট করে রাখুন */
+.questions-grid::before {
+    display: none; 
+}
+
+
+.question-block { 
+    break-inside: avoid; 
+    page-break-inside: avoid; /* বাড়তি সুরক্ষার জন্য */
+    margin-bottom: 20px; 
+}
+
+
+.question-title { 
+    font-size: 14px; 
+    font-weight: bold; 
+    margin-bottom: 8px; 
+    line-height: 1.4; 
+}
+
+/* অপশনগুলো একটার নিচে একটা সমানভাবে রাখার জন্য */
+.options-container { 
+    display: flex;
+    flex-direction: column; 
+    gap: 6px; 
+    padding-left: 10px; 
+}
+
+.option-item { 
+    font-size: 13px; 
+    line-height: 1.3; 
+    text-align: left;
+}
+
+
+/* ==========================================================================
+   ৩. প্রফেশনাল ওএমআর শিট ডিজাইন (Professional OMR Sheet Design)
+   ========================================================================== */
+.omr-pro-page {
+    background-color: #ffffff;
+    color: #000000;
+    padding: 15px 20px; /* ওএমআর-এর ভেতরের মার্জিন ব্যালেন্স করা হলো */
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 3px double #d81b60; 
+    max-width: 100%;
+    height: 275mm; /* নিখুঁত A4 সিঙ্গেল পেজ সাইজ ফিক্স */
+    max-height: 275mm;
+    margin: 0 auto;
+    page-break-inside: avoid;
+    overflow: hidden; /* বাইরের ফালতু উপচে পড়া অংশ কাটা পড়বে */
+    display: flex;
+    flex-direction: column;
+}
+
+.omr-pro-header {
+    text-align: center;
+    border-bottom: 2px dashed #d81b60;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+
+.omr-pro-header h2 {
+    margin: 0 0 3px 0;
+    color: #d81b60;
+    font-size: 22px;
+    text-transform: uppercase;
+}
+
+.omr-pro-header h3 {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+/* টপ সেকশন লেআউট */
+.omr-top-flex {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 15px;
+}
+
+/* বামদিকের ইনফো প্যানেল */
+.omr-info-left {
+    width: 55%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ডানদিকের বাবল গ্রিড প্যানেল */
+.omr-grids-right {
+    width: 42%;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.omr-box-title {
+    font-size: 11px;
+    font-weight: bold;
+    background-color: #d81b60;
+    color: #fff;
+    padding: 4px 6px;
+    margin-bottom: 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+}
+
+/* ক্যান্ডিডেটের নাম লেখার বক্স গ্রিড */
+.name-grid-container {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 2px;
+    margin-bottom: 5px;
+}
+
+.name-box {
+    height: 22px;
+    border: 1px solid #000;
+    background: #fff;
+}
+
+/* তারিখ ও সিগনেচার এরিয়া */
+.date-sig-flex {
+    display: flex;
+    justify-content: space-between;
+}
+
+.date-box-row {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.date-box-row .name-box {
+    width: 16px;
+    height: 20px;
+}
+
+.signature-blank-box {
+    height: 38px;
+    border: 1px dashed #000;
+    background: #fafafa;
+}
+
+/* ওএমআর এর দরকারি নির্দেশনাবলী */
+.omr-pro-instructions {
+    border: 1px solid #d81b60;
+    padding: 6px;
+    border-radius: 4px;
+    background-color: #fff5f8;
+}
+
+.omr-pro-instructions strong {
+    font-size: 10.5px;
+    color: #d81b60;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.omr-pro-instructions ul {
+    margin: 0;
+    padding-left: 12px;
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+/* বুকলেট এবং রোল নম্বরের মডিউলার আর্কিটেকচার */
+.number-bubble-structure {
+    border: 1px solid #000;
+    padding: 5px;
+    width: 48%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.num-digit-boxes {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 5px;
+}
+
+.digit-box {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #000;
+    text-align: center;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 16px;
+    background-color: #f1f2f6;
+}
+
+.num-bubble-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bubble-row-line {
+    display: flex;
+    justify-content: space-around;
+}
+
+/* নম্বর ইনপুটের নিচের ছোট বাবলগুলো */
+.omr-grid-circle {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #d81b60;
+    border-radius: 50%;
+    font-size: 8.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d81b60;
+    font-weight: bold;
+}
+
+/* বুকলেট নম্বরের সাথে ম্যাচ করা বাবল প্রি-ফিল করার স্টাইল */
+.omr-grid-circle.pre-filled {
+    background-color: #222 !important;
+    color: #fff !important;
+    border-color: #222 !important;
+}
+
+/* পার্ট - বি অ্যান্সার হেডার */
+.omr-pro-part-b {
+    background-color: #000;
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    padding: 4px;
+    font-size: 13px;
+    margin: 12px 0 8px 0;
+    letter-spacing: 1px;
+}
+
+/* প্রশ্নের উত্তরের বাবল সাজানোর জন্য ৪টি কলাম বিশিষ্ট গ্রিড লেআউট */
+.omr-answers-flex-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-flow: row;
+    gap: 1.5px 12px; /* বাবল লাইনের গ্যাপ কমানো হলো যাতে বক্সের বাইরে না যায় */
+    padding: 4px;
+    overflow: hidden;
+}
+
+.omr-question-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 1.5px 0;
+    border-bottom: 1px dashed #f1f2f6;
+}
+
+.omr-q-number {
+    width: 25px;
+    font-size: 11.5px;
+    font-weight: bold;
+    text-align: right;
+    margin-right: 6px;
+    color: #000;
+}
+
+.omr-opt-circle {
+    width: 16px;  /* সার্কেলের সাইজ সামান্য কমানো হলো */
+    height: 16px;
+    border: 1.5px solid #d81b60;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9.5px;
+    font-weight: bold;
+    color: #d81b60;
+    margin-right: 3px;
+}
+
+/* ওএমআর শিটের নিচের অফিসিয়াল সিগনেচার সেকশন */
+.omr-footer-signatures {
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto; /* এটি স্বয়ংক্রিয়ভাবে পেজের একদম নিচে বর্ডার ছোঁয়ার আগে জায়গা নেবে */
+    padding-top: 15px;
+}
+
+.sig-line-box {
+    width: 42%;
+    border-top: 1px solid #000;
+    text-align: center;
+    font-size: 11px;
+    padding-top: 4px;
+    font-weight: bold;
+}
+
+/* পেজ ব্রেক (কোশ্চেনের শেষ থেকে ওএমআর নতুন পাতায় প্রিন্ট করার রুল) */
+.page-break {
+    page-break-before: always;
+    break-before: page;
+}
+
+/* নাম লেখার খালি লাইনের স্টাইল */
+.omr-name-field-container {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
+}
+
+.omr-field-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 4px;
+}
+
+.omr-underline-space {
+    width: 100%;
+    height: 30px;
+    border-bottom: 2px solid #000; 
+    background-color: #fff;
+}
+
+
+/* ==========================================================================
+   ৪. প্রিন্ট মিডিয়া সেটিংস (Print Optimization Styles)
+   ========================================================================== */
+@media print {
+    @page { 
+        size: A4; 
+        margin: 10mm; 
+    }
+    
+    body { 
+        background-color: #fff; 
+    }
+    
+    .no-print { 
+        display: none !important; 
+    } 
+    
+    .main-content { 
+        margin-left: 0; 
+        padding: 0; 
+        width: 100%; 
+        display: block; 
+    }
+    
+    .print-container { 
+        box-shadow: none; 
+        min-height: auto; 
+    }
+    
+    .omr-pro-page {
+        border: 3px double #d81b60 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .omr-box-title {
+        background-color: #d81b60 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .omr-pro-part-b {
+        background-color: #000 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .omr-grid-circle.pre-filled {
+        background-color: #000 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .intro-page-wrapper {
+        page-break-after: always;
+        break-after: page;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+
+/* ==========================================================================
+   ৫. অফিশিয়াল ইন্ট্রোডাকশন পেজ স্টাইল (Official Introduction Page)
+   ========================================================================== */
+.intro-page-wrapper {
+    background-color: #ffffff;
+    color: #000000;
+    padding: 20px 30px; /* প্যাডিং সামান্য অপ্টিমাইজ করা হলো */
+    box-sizing: border-box;
+    font-family: 'Times New Roman', Times, serif;
+    height: 275mm; /* ফিক্সড A4 সিঙ্গেল পেজ হাইট */
+    max-height: 275mm;
+    position: relative;
+    overflow: hidden; /* যাতে উপচে পড়া অংশ অন্য পাতায় না যায় */
+}
+
+.intro-top-code {
+    text-align: right;
+    font-size: 15px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.intro-alert-text {
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: underline;
+    margin-bottom: 20px;
+    letter-spacing: 0.5px;
+}
+
+.intro-main-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.intro-meta-info {
+    text-align: center;
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+/* বারকোড ও সিরিয়াল নাম্বার সেকশন */
+.intro-barcode-serial-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 15px;
+    padding: 0 10px;
+}
+
+.intro-barcode-box {
+    width: 220px;
+    text-align: center;
+}
+
+.barcode-lines {
+    height: 32px;
+    background: repeating-linear-gradient(
+        90deg,
+        #000,
+        #000 2px,
+        #fff 2px,
+        #fff 6px,
+        #000 6px,
+        #000 9px
+    );
+    margin-bottom: 4px;
+}
+
+.barcode-text {
+    font-size: 10px;
+    font-weight: bold;
+    display: block;
+}
+
+.intro-serial-box {
+    text-align: right;
+}
+
+.serial-label {
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.serial-number-digits {
+    display: flex;
+    gap: 2px;
+    justify-content: flex-end;
+}
+
+.serial-number-digits span {
+    display: inline-block;
+    width: 22px;
+    height: 26px;
+    border: 1px solid #000;
+    text-align: center;
+    line-height: 26px;
+    font-size: 18px;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+}
+
+.intro-divider-line {
+    border-top: 2px solid #000;
+    margin-bottom: 15px;
+}
+
+/* দ্বিপাক্ষিক কলাম লেআউট */
+.intro-instructions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px; /* দুটি কলামের মাঝের স্পেস */
+    position: relative; /* দাগটিকে নিখুঁতভাবে মাঝখানে বসানোর জন্য */
+    border-left: none !important; /* আগের ভুল বর্ডারটি রিমুভ করা হলো */
+    margin-left: 0 !important;
+}
+/* কলামের একদম মাঝখান দিয়ে নিখুঁত সোজা দাগ টানার জন্য */
+.intro-instructions-grid::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background-color: #000000; 
+    transform: translateX(-50%);
+}
+
+.intro-lang-col {
+    padding: 0 10px;
+}
+
+.intro-lang-col h3 {
+    text-align: center;
+    margin-top: 0;
+    font-size: 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.intro-lang-col ol {
+    padding-left: 18px;
+    margin: 0;
+}
+
+.intro-lang-col li {
+    font-size: 11.5px; /* ফন্ট সামান্য সংকুচিত করা হলো যাতে নিখুঁতভাবে ১ পেজে ধরে */
+    line-height: 1.4;
+    margin-bottom: 7px;
+    text-align: justify;
+}
+
+.intro-lang-col.ben-col {
+    font-family: Arial, Helvetica, sans-serif; 
+}
+
+.intro-lang-col.ben-col h3 {
+    letter-spacing: 0;
+}
+
+.intro-date-stamp {
+    position: absolute;
+    bottom: 25px;
+    left: 40px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.intro-footer-turn {
+    position: absolute;
+    bottom: 25px;
+    right: 40px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* কোশ্চেন পেজের রানিং হেডার স্টাইল */
+.exam-running-header {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+}
+/* গণিতের সমীকরণগুলোর সাইজ কোশ্চেন টেক্সটের সাথে সামঞ্জস্যপূর্ণ করা */
+.mjx-chtml {
+    font-size: 105% !important;
+    color: #000000;
+}
+
+/* ==========================================================================
+   ইন্ট্রোডাকশন পেজ ও সার্বিক পেজ নম্বর পজিশনিং ঠিক করার কোড
+   ========================================================================== */
+
+/* ইন্ট্রোডাকশন পেজের গ্রিড ও ফ্লেক্স সেটিংস ঠিক করা যাতে ওভারল্যাপ না হয় */
+.intro-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* এটি ফুটারকে অটোমেটিক একদম নিচে পুশ করবে */
+    height: 275mm;
+    box-sizing: border-box;
+}
+
+/* আগের পজিশন ওভাররাইড করা (পুরনো স্টাইলগুলো নিষ্ক্রিয় করা হলো) */
+.intro-date-stamp, .intro-page-number-footer {
+    display: none !important;
+}
+
+/* নতুন ফুটার লেআউট */
+.intro-custom-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed #000;
+    padding-top: 10px;
+    margin-top: 15px;
+    font-family: Arial, sans-serif;
+}
+
+.intro-footer-date {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.intro-footer-page {
+    font-size: 14px;
+    font-weight: bold;
+    text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   প্রত্যেকটি প্রিন্ট হওয়া পেজের নিচে ডান সাইডে পেজ নম্বর দেওয়ার আধুনিক নিয়ম
+   -------------------------------------------------------------------------- */
+@media print {
+    @page {
+        /* CSS মার্জিন বক্সের মাধ্যমে প্রত্যেক পাতার নিচে ডানদিকে পেজ নম্বর প্রিন্ট হবে */
+        @bottom-right {
+            content: "Page " counter(page);
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    }
+}
+
+
+
+/* ========== PULL-OUT SIDEBAR SYSTEM (মোবাইল ফিক্স) ========== */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 150;
+}
+.sidebar-overlay.open { display: block; }
+
+.sidebar {
+    left: -360px !important;
+    transition: left 0.3s cubic-bezier(.4,0,.2,1) !important;
+    position: fixed !important;
+    z-index: 200 !important;
+}
+.sidebar.open { left: 0 !important; }
+
+.sidebar-close-btn {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: #341f97;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 32px;
+    text-align: center;
+}
+
+.main-content {
+    margin-left: 0 !important;
+    padding-top: 60px !important;
+}
+
+.app-topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: #1e272e;
+    color: #f5f6fa;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+    height: 52px;
+}
+.app-topbar-toggle {
+    background: #341f97;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    width: 36px; height: 36px;
+    font-size: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.app-topbar-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #00d2d3;
+}
+
+@media print {
+    .app-topbar, .sidebar-overlay { display: none !important; }
+    .main-content { padding-top: 0 !important; }
+}

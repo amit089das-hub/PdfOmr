@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI OMR Evaluator</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2e86de">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="OMR Eval">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #2c3e50; min-height: 100vh; overflow-x: hidden; }
+
+        /* SIDEBAR */
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; }
+        .sidebar-overlay.open { display: block; }
+        .sidebar { width: 280px; background: #1e272e; color: #f5f6fa; padding: 18px 16px; height: 100vh; overflow-y: auto; position: fixed; top: 0; left: -300px; z-index: 300; transition: left 0.3s cubic-bezier(.4,0,.2,1); }
+        .sidebar.open { left: 0; }
+        .sidebar-close-btn { position: absolute; top: 12px; right: 12px; background: #341f97; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 18px; cursor: pointer; line-height: 32px; text-align: center; }
+        .sidebar h2 { font-size: 15px; border-bottom: 2px solid #341f97; padding-bottom: 10px; color: #00d2d3; margin-bottom: 16px; padding-right: 36px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: bold; color: #ced6e0; }
+        .form-group select, .form-group input[type="text"] { width: 100%; padding: 9px 10px; border-radius: 4px; border: 1px solid #341f97; background: #2f3640; color: white; font-size: 13px; }
+        .step-dot { display: inline-block; background: #341f97; color: white; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 20px; font-size: 11px; font-weight: bold; margin-right: 5px; }
+        .sbtn { display: block; width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 13px; font-weight: bold; cursor: pointer; margin-bottom: 8px; transition: 0.2s; text-align: center; text-decoration: none; }
+        .sbtn-green  { background: #10ac84; color: white; }
+        .sbtn-orange { background: #e67e22; color: white; }
+        .sbtn-back   { background: transparent; color: #00d2d3; border: 1px solid #00d2d3; margin-top: 10px; }
+        .tab-row { display: flex; gap: 6px; margin-top: 6px; }
+        .tab-btn { flex: 1; padding: 8px 5px; border: 2px solid #341f97; border-radius: 5px; background: transparent; color: #ced6e0; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .tab-btn.active { background: #341f97; color: white; }
+        .divider { border-top: 1px dashed #57606f; margin: 14px 0; }
+
+        /* booklet info box in sidebar */
+        .booklet-info-box { background: #111820; border: 1px solid #341f97; border-radius: 6px; padding: 10px; margin-bottom: 14px; text-align: center; }
+        .booklet-info-box label { color: #ced6e0; font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px; }
+        .booklet-digits { display: flex; justify-content: center; gap: 4px; }
+        .booklet-digit { background: #341f97; color: #00d2d3; font-weight: bold; font-size: 16px; width: 26px; height: 30px; line-height: 30px; border-radius: 3px; }
+
+        /* TOPBAR */
+        .topbar { position: sticky; top: 0; z-index: 100; background: #1e272e; color: #f5f6fa; display: flex; align-items: center; gap: 12px; padding: 12px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+        .topbar-toggle { background: #341f97; color: white; border: none; border-radius: 6px; width: 38px; height: 38px; font-size: 20px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .topbar-title { font-size: 15px; font-weight: bold; color: #00d2d3; }
+        .topbar-sub { font-size: 11px; color: #ced6e0; margin-left: auto; max-width: 140px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* MAIN */
+        .main-area { padding: 16px; max-width: 700px; margin: 0 auto; }
+        .page-title { text-align: center; margin-bottom: 14px; }
+        .page-title h2 { color: #341f97; font-size: 17px; }
+        .page-title p  { color: #7f8c8d; font-size: 12px; margin-top: 4px; }
+        .status-bar { padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 13px; margin-bottom: 14px; display: none; }
+        .s-info    { background: #eaf4fd; color: #2980b9; border: 1px solid #aed6f1; display: block; }
+        .s-success { background: #eafaf1; color: #27ae60; border: 1px solid #82e0aa; display: block; }
+        .s-error   { background: #fdedec; color: #e74c3c; border: 1px solid #f1948a; display: block; }
+
+        /* preview */
+        .cap-preview { display: none; position: relative; margin-bottom: 14px; }
+        .cap-preview img { width: 100%; border-radius: 10px; border: 3px solid #10ac84; display: block; }
+        .cap-preview .remove-btn { position: absolute; top: 8px; right: 8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; line-height: 30px; text-align: center; }
+
+        /* upload box */
+        .upload-box { display: none; border: 3px dashed #341f97; border-radius: 12px; background: white; padding: 40px 20px; text-align: center; cursor: pointer; margin-bottom: 14px; }
+        .upload-box .uico { font-size: 46px; margin-bottom: 10px; }
+        .upload-box strong { color: #341f97; font-size: 15px; display: block; margin-bottom: 6px; }
+        .upload-box span   { color: #999; font-size: 12px; }
+
+        /* BUBBLE SECTION */
+        .bubble-section { display: none; background: white; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+        .bubble-section h4 { color: #341f97; font-size: 14px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; margin-bottom: 12px; }
+        .bubble-section h4 span { color: #888; font-weight: normal; font-size: 11px; display: block; margin-top: 2px; }
+        .scan-btn-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        .scan-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; color: white; }
+        .scan-btn-ai    { background: #2e86de; }
+        .scan-btn-pixel { background: #27ae60; }
+        .bub-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+        .bub-row { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #f5f5f5; }
+        .bub-qn { min-width: 26px; text-align: right; font-size: 11px; font-weight: bold; color: #555; flex-shrink: 0; }
+        .bub-opt { width: 24px; height: 24px; border: 1.5px solid #d81b60; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: #d81b60; cursor: pointer; user-select: none; transition: 0.15s; flex-shrink: 0; }
+        .bub-opt:hover   { background: #ffe0f0; }
+        .bub-opt.sel     { background: #1e272e !important; color: #fff !important; border-color: #1e272e !important; }
+        .bub-opt.correct { background: #2ecc71 !important; color: #fff !important; border-color: #27ae60 !important; }
+        .bub-opt.wrong   { background: #e74c3c !important; color: #fff !important; border-color: #c0392b !important; }
+        .bub-opt.skipped { background: #f39c12 !important; color: #fff !important; border-color: #e67e22 !important; }
+
+        /* RESULT */
+        .result-box { display: none; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 18px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .result-box h3 { color: #341f97; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 14px; font-size: 16px; }
+        .r-exam-info { font-size: 13px; color: #555; margin-bottom: 14px; }
+        .r-metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
+        .r-card { background: #f8f9fa; border-radius: 8px; padding: 10px 6px; text-align: center; border-bottom: 4px solid #ccc; }
+        .r-card h5 { margin: 0 0 4px; font-size: 10px; }
+        .r-card h2 { margin: 0; font-size: 22px; }
+        .r-score-box { background: linear-gradient(135deg, #341f97, #2e86de); color: white; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 14px; }
+        .r-score-box .score-label { font-size: 12px; margin-bottom: 4px; }
+        .r-score-box .score-val   { font-size: 38px; font-weight: bold; line-height: 1; }
+        .r-score-box .score-max   { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+        .r-breakdown { background: #f8f9fa; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+        .r-breakdown div { display: flex; justify-content: space-between; font-size: 13px; }
+        .r-breakdown div + div { margin-top: 5px; }
+        .review-list h4 { font-size: 13px; color: #2c3e50; margin-bottom: 8px; }
+        .r-item { display: flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 5px; margin-bottom: 3px; font-size: 12px; }
+        .r-item.ok   { background: #eafaf1; border-left: 3px solid #2ecc71; }
+        .r-item.bad  { background: #fdedec; border-left: 3px solid #e74c3c; }
+        .r-item.skip { background: #f4f6f7; border-left: 3px solid #bdc3c7; }
+        .r-item .rn  { font-weight: bold; min-width: 32px; }
+
+        /* OMR VISUAL RESULT */
+        .omr-visual-result { margin-top: 20px; }
+        .omr-visual-result h4 { font-size: 14px; color: #341f97; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #eee; }
+        .omr-legend { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #555; margin-bottom: 14px; flex-wrap: wrap; }
+        .leg-bubble { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ccc; }
+        .green-bubble  { background: #2ecc71; border-color: #27ae60; }
+        .red-bubble    { background: #e74c3c; border-color: #c0392b; }
+        .yellow-bubble { background: #f39c12; border-color: #e67e22; }
+        .correct-bubble{ background: white; border: 3px solid #27ae60; }
+
+        .omr-grid-result { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .omr-col-result  { display: flex; flex-direction: column; gap: 3px; }
+        .omr-row-result  { display: flex; align-items: center; gap: 3px; font-size: 9px; font-weight: bold; color: #555; }
+        .omr-qno { min-width: 18px; text-align: right; font-size: 9px; color: #888; }
+        .omr-bubble-r {
+            width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 8px; font-weight: bold; color: white;
+            border: 2px solid #ccc; background: #f0f0f0; color: #999;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .omr-bubble-r.b-filled-correct  { background: #2ecc71; border-color: #27ae60; color: white; }
+        .omr-bubble-r.b-filled-wrong    { background: #e74c3c; border-color: #c0392b; color: white; }
+        .omr-bubble-r.b-empty-correct   { background: white;   border: 3px solid #27ae60; color: #27ae60; }
+        .omr-bubble-r.b-skipped         { background: #f39c12; border-color: #e67e22; color: white; }
+
+        /* CAMERA MODAL */
+        #camModal { display: none; position: fixed; inset: 0; background: #000; z-index: 9999; width: 100vw; height: 100vh; overflow: hidden; }
+        #camModal.open { display: flex; flex-direction: column; }
+        #camVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .cam-frame-wrap { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 88vw; height: 65vh; pointer-events: none; z-index: 3; }
+        .cam-c { position: absolute; width: 50px; height: 50px; border-style: solid; transition: border-color 0.3s; }
+        .cam-c.tl { top: 0; left: 0; border-width: 5px 0 0 5px; border-color: #ff2e93; }
+        .cam-c.tr { top: 0; right: 0; border-width: 5px 5px 0 0; border-color: #ff2e93; }
+        .cam-c.bl { bottom: 0; left: 0; border-width: 0 0 5px 5px; border-color: #ff2e93; }
+        .cam-c.br { bottom: 0; right: 0; border-width: 0 5px 5px 0; border-color: #ff2e93; }
+        .cam-c.det { border-color: #2ecc71 !important; }
+        .cam-mask-h { position: absolute; left: 0; right: 0; background: rgba(0,0,0,0.55); z-index: 2; }
+        .cam-mask-h.top { top: 0; }
+        .cam-mask-h.bot { bottom: 0; }
+        .cam-mask-v { position: absolute; background: rgba(0,0,0,0.55); z-index: 2; }
+        .cam-mask-v.lft { left: 0; }
+        .cam-mask-v.rgt { right: 0; }
+        .cam-scanline { position: absolute; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #00d2d3, transparent); animation: sl 2s linear infinite; z-index: 4; pointer-events: none; }
+        @keyframes sl { 0% { top: 0; opacity: 1; } 95% { top: 100%; opacity: 1; } 100% { top: 0; opacity: 0; } }
+        .cam-topbar { position: absolute; top: 0; left: 0; right: 0; padding: 12px 14px; background: linear-gradient(to bottom, rgba(0,0,0,0.75), transparent); color: white; font-size: 13px; font-weight: bold; text-align: center; z-index: 10; }
+        .cam-bottombar { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 14px 24px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); display: flex; justify-content: center; gap: 12px; z-index: 10; }
+        .cam-btn { padding: 12px 24px; border: none; border-radius: 50px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .cam-btn-capture { background: #ff2e93; color: white; }
+        .cam-btn-close   { background: rgba(255,255,255,0.15); color: white; border: 2px solid rgba(255,255,255,0.5); }
+        canvas { display: none; }
+
+        /* booklet verify badge */
+        .booklet-verify { display:none; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:bold; margin-bottom:10px; }
+        .bv-ok  { background:#eafaf1; color:#27ae60; border:1px solid #82e0aa; display:block; }
+        .bv-err { background:#fdedec; color:#e74c3c; border:1px solid #f1948a; display:block; }
+    </style>
+</head>
+<body>
+
+<!-- ফুলস্ক্রিন ক্যামেরা মোডাল -->
+<div id="camModal">
+    <video id="camVideo" autoplay playsinline muted></video>
+    <div class="cam-mask-h top" id="maskTop"></div>
+    <div class="cam-mask-h bot" id="maskBot"></div>
+    <div class="cam-mask-v lft" id="maskLft"></div>
+    <div class="cam-mask-v rgt" id="maskRgt"></div>
+    <div class="cam-frame-wrap" id="camFrame">
+        <div class="cam-c tl" id="c_tl"></div>
+        <div class="cam-c tr" id="c_tr"></div>
+        <div class="cam-c bl" id="c_bl"></div>
+        <div class="cam-c br" id="c_br"></div>
+        <div class="cam-scanline"></div>
+    </div>
+    <div class="cam-topbar" id="camTopBar">📷 OMR শিটটি ফ্রেমের মধ্যে ধরুন...</div>
+    <div class="cam-bottombar">
+        <button class="cam-btn cam-btn-capture" onclick="doCaptureFromCam()">📸 ক্যাপচার</button>
+        <button class="cam-btn cam-btn-close"   onclick="closeCam()">✕ বন্ধ</button>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+    <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
+    <h2>🔍 OMR Evaluator</h2>
+
+    <div class="form-group">
+        <label><span class="step-dot">১</span> মক টেস্ট সিলেক্ট করুন:</label>
+        <select id="evalSelect" onchange="loadTest()">
+            <option value="">-- পরীক্ষা বাছুন --</option>
+        </select>
+    </div>
+
+    <!-- booklet number display -->
+    <div class="booklet-info-box" id="bookletInfoBox" style="display:none;">
+        <label>📋 বুকলেট নম্বর (ফাইল থেকে):</label>
+        <div class="booklet-digits" id="bookletDigits"></div>
+    </div>
+
+    <div class="form-group">
+        <label><span class="step-dot">২</span> ইনপুট পদ্ধতি:</label>
+        <div class="tab-row">
+            <button class="tab-btn active" id="btnCam"    onclick="switchTab('cam')">📷 স্ক্যান</button>
+            <button class="tab-btn"        id="btnUpload" onclick="switchTab('upload')">🖼️ আপলোড</button>
+        </div>
+    </div>
+
+    <div id="camControls">
+        <button class="sbtn sbtn-green" onclick="openCam()">📷 স্ক্যান করুন (ফুলস্ক্রিন)</button>
+        <div id="mobileCapBtn" style="display:none;">
+            <label class="sbtn sbtn-orange" style="cursor:pointer;">
+                📷 মোবাইল ক্যামেরা
+                <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleFile(event)">
+            </label>
+        </div>
+    </div>
+    <div id="uploadControls" style="display:none;">
+        <button class="sbtn sbtn-orange" onclick="document.getElementById('fi').click()">🖼️ ছবি বাছুন</button>
+        <input type="file" id="fi" accept="image/*" style="display:none;" onchange="handleFile(event)">
+    </div>
+
+    <div class="divider"></div>
+    <a href="index.html" class="sbtn sbtn-back">⬅️ কোশ্চেন জেনারেটরে ফিরুন</a>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+    <button class="topbar-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-title">🔍 OMR Evaluator</div>
+    <div class="topbar-sub" id="topbarSub">পরীক্ষা বাছুন →</div>
+</div>
+
+<!-- MAIN -->
+<div class="main-area">
+    <div class="page-title">
+        <h2>🤖 AI OMR স্ক্যানার ও মূল্যায়ন ইঞ্জিন</h2>
+        <p>পরীক্ষা সিলেক্ট → স্ক্যান / আপলোড → অটো রেজাল্ট</p>
+    </div>
+
+    <div class="status-bar" id="statusBar"></div>
+    <div class="booklet-verify" id="bookletVerify"></div>
+
+    <!-- প্রিভিউ -->
+    <div class="cap-preview" id="capPreview">
+        <img id="prevImg" src="" alt="OMR">
+        <button class="remove-btn" onclick="removeImg()">✕</button>
+    </div>
+
+    <!-- আপলোড -->
+    <div class="upload-box" id="uploadBox"
+         onclick="document.getElementById('fi').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="dropFile(event)">
+        <div class="uico">🖼️</div>
+        <strong>OMR শিটের ছবি আপলোড করুন</strong>
+        <span>ক্লিক করুন বা ড্র্যাগ করুন (JPG/PNG)</span>
+    </div>
+
+    <canvas id="cc"></canvas>
+
+    <!-- বাবল গ্রিড -->
+    <div class="bubble-section" id="bubbleSec">
+        <h4>✏️ উত্তর ভেরিফাই করুন
+            <span>ভুল থাকলে ক্লিক করে ঠিক করুন, তারপর সাবমিট করুন</span>
+        </h4>
+        <div class="scan-btn-row">
+            <button class="scan-btn scan-btn-ai"    onclick="if(capturedData && questions.length) aiScanOMR(capturedData);">🤖 AI স্ক্যান</button>
+            <button class="scan-btn scan-btn-pixel" onclick="if(capturedData && questions.length) pixelScanOMR(capturedData);">🔍 Pixel স্ক্যান</button>
+        </div>
+        <div class="bub-columns" id="bubGrid"></div>
+    </div>
+
+    <!-- সাবমিট -->
+    <button id="submitBtn"
+            style="display:none;width:100%;padding:14px;border:none;border-radius:8px;background:#e74c3c;color:white;font-size:16px;font-weight:bold;cursor:pointer;margin-bottom:20px;"
+            onclick="evaluate()">
+        ⚡ সাবমিট করুন ও রেজাল্ট দেখুন
+    </button>
+
+    <!-- রেজাল্ট -->
+    <div class="result-box" id="resultBox">
+        <h3>📊 মূল্যায়ন রিপোর্ট</h3>
+        <div class="r-exam-info">
+            <strong>পরীক্ষা:</strong> <span id="rName" style="color:#d81b60;font-weight:bold;">-</span>
+            &nbsp;|&nbsp;
+            <strong>বুকলেট:</strong> <span id="rBooklet" style="color:#2e86de;font-weight:bold;">-</span>
+        </div>
+        <div class="r-metrics">
+            <div class="r-card" style="border-color:#2e86de;"><h5 style="color:#2e86de;">মোট</h5><h2 id="mT" style="color:#2e86de;">0</h2></div>
+            <div class="r-card" style="border-color:#10ac84;"><h5 style="color:#10ac84;">সঠিক ✅</h5><h2 id="mC" style="color:#10ac84;">0</h2></div>
+            <div class="r-card" style="border-color:#ee5253;"><h5 style="color:#ee5253;">ভুল ❌</h5><h2 id="mW" style="color:#ee5253;">0</h2></div>
+            <div class="r-card" style="border-color:#bdc3c7;"><h5 style="color:#bdc3c7;">বাদ ⭕</h5><h2 id="mS" style="color:#bdc3c7;">0</h2></div>
+        </div>
+        <div class="r-score-box">
+            <div class="score-label">প্রাপ্ত নম্বর</div>
+            <div class="score-val" id="mScore">0.00</div>
+            <div class="score-max" id="mMax">/ 0</div>
+        </div>
+        <div class="r-breakdown">
+            <div><span>সঠিক (×১)</span><span id="rCS" style="color:#10ac84;font-weight:bold;">+0</span></div>
+            <div><span id="rNL">ভুল (×০.২৫)</span><span id="rWS" style="color:#ee5253;font-weight:bold;">-0</span></div>
+        </div>
+        <!-- OMR Visual Result Sheet -->
+        <div class="omr-visual-result" id="omrVisualResult">
+            <h4>📋 OMR শিট ভিজ্যুয়াল রিভিউ</h4>
+            <div class="omr-legend">
+                <span class="leg-bubble green-bubble"></span> সঠিক
+                <span class="leg-bubble red-bubble"></span> ভুল
+                <span class="leg-bubble yellow-bubble"></span> খালি
+                <span class="leg-bubble correct-bubble"></span> সঠিক উত্তর
+            </div>
+            <div class="omr-grid-result" id="omrGridResult"></div>
+        </div>
+    </div>
+</div>
+
+<script src="question/file-list.js"></script>
+<script>
+/* ============ STATE ============ */
+let questions    = [];
+let examName     = '';
+let answers      = [];
+let bookletNo    = '';   // ফাইল থেকে নেওয়া fixed booklet number
+let camStream    = null;
+let autoInterval = null;
+let curTab       = 'cam';
+let capturedData = null;
+let frameRect    = null;
+
+/* ============ SIDEBAR ============ */
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+/* ============ AI SCAN ============
+   OMR শিটের 4-column layout:
+   col1: Q1–Q21, col2: Q22–Q42, col3: Q43–Q63, col4: Q64–Q84
+   AI-কে এই layout সম্পর্কে বিস্তারিত জানাতে হবে
+*/
+async function aiScanOMR(base64Image) {
+    if (!questions.length) return;
+    if (!navigator.onLine) {
+        status('📴 অফলাইন — pixel detection চলছে...', 'info');
+        pixelScanOMR(base64Image);
+        return;
+    }
+    status('🤖 AI দিয়ে OMR বিশ্লেষণ হচ্ছে... অপেক্ষা করুন', 'info');
+    try {
+        const imageData = base64Image.split(',')[1];
+        const mediaType = base64Image.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+        const total = questions.length;
+        const numCols = 4;
+        const rowsPerCol = Math.ceil(total / numCols);
+
+        // প্রতিটি column-এর question range
+        const colRanges = [];
+        for (let c = 0; c < numCols; c++) {
+            const from = c * rowsPerCol + 1;
+            const to   = Math.min((c + 1) * rowsPerCol, total);
+            colRanges.push(`Column ${c+1}: Q${from} to Q${to}`);
+        }
+
+        // bookletNo যদি থাকে তাহলে AI কে জানাই — AI verify করবে
+        const bookletHint = bookletNo
+            ? `\nThe expected BOOKLET NO. is: ${bookletNo}. Check if the bubbles filled in the BOOKLET NO. grid match this number.`
+            : '';
+
+        const prompt = `You are an expert OMR (Optical Mark Recognition) sheet analyzer. Your job is to read a printed OMR answer sheet image very carefully and accurately.
+
+== OMR SHEET STRUCTURE ==
+- Total questions: ${total}
+- Each question has 4 circular bubble options: A, B, C, D (left to right)
+- Answer bubbles are arranged in ${numCols} VERTICAL COLUMNS, read LEFT to RIGHT:
+  ${colRanges.join('\n  ')}
+- Within each column: questions go TOP to BOTTOM
+- Example: Q1 is at TOP of Column 1, Q${rowsPerCol} is at BOTTOM of Column 1, Q${rowsPerCol+1} is at TOP of Column 2
+
+== BOOKLET NO. SECTION ==
+- At the top-right of the sheet, there is a "BOOKLET NO." box with 6 digit columns
+- Each digit column has bubbles 0-9; the darkened bubble = that digit${bookletHint}
+
+== HOW TO IDENTIFY A FILLED BUBBLE ==
+- A filled/darkened bubble is significantly darker than empty ones (filled with black/blue pen)
+- A partially filled bubble counts as filled
+- An empty bubble has just a circle outline
+- Do NOT confuse smudges or stray marks as filled bubbles
+- If two bubbles appear filled for one question, pick the darker one; if unclear use -1
+
+== OUTPUT FORMAT ==
+Return ONLY a valid JSON object with NO markdown, no explanation, no extra text:
+{
+  "booklet": "6-digit-number-from-sheet",
+  "answers": [${Array.from({length: total}, (_,i) => `ans_Q${i+1}`).join(', ')}]
+}
+
+Where each answer value is:
+- 0 = A is filled
+- 1 = B is filled  
+- 2 = C is filled
+- 3 = D is filled
+- -1 = no bubble filled or unclear
+
+The "answers" array MUST have exactly ${total} integers.
+The "booklet" field should be the 6-digit number read from the BOOKLET NO. grid (darkened bubbles).`;
+
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "claude-sonnet-4-6",
+                max_tokens: 1500,
+                messages: [{ role: "user", content: [
+                    { type: "image", source: { type: "base64", media_type: mediaType, data: imageData } },
+                    { type: "text",  text: prompt }
+                ]}]
+            })
+        });
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            throw new Error(`API error ${res.status}: ${errBody}`);
+        }
+
+        const data  = await res.json();
+        const text  = data.content.map(i => i.text || '').join('').trim();
+        const clean = text.replace(/```json|```/g, '').trim();
+
+        let parsed;
+        try {
+            parsed = JSON.parse(clean);
+        } catch(parseErr) {
+            // JSON parse fail হলে আবার চেষ্টা — আংশিক JSON বের করো
+            const jsonMatch = clean.match(/\{[\s\S]*\}/);
+            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+            else throw new Error('AI response JSON parse করা যায়নি: ' + clean.substring(0, 100));
+        }
+
+        // Booklet verification — শুধু .js ফাইলের নম্বরের সাথে মিলাও
+        if (parsed.booklet) {
+            verifyBooklet(parsed.booklet);
+        }
+
+        if (!Array.isArray(parsed.answers) || parsed.answers.length === 0) {
+            throw new Error('AI উত্তর array সঠিক নয়');
+        }
+
+        // যদি answers array-তে কম element থাকে, বাকি -1 দিয়ে fill করো
+        while (parsed.answers.length < total) parsed.answers.push(-1);
+
+        const detected = applyScannedAnswers(parsed.answers);
+        const skipped  = parsed.answers.filter(a => a === -1).length;
+        status(`✅ AI স্ক্যান সম্পন্ন! ${detected}টি উত্তর শনাক্ত, ${skipped}টি খালি। ভুল থাকলে ঠিক করুন।`, 'success');
+
+    } catch (err) {
+        console.warn('AI scan failed, pixel fallback:', err);
+        status('⚠️ AI ব্যর্থ (' + err.message.substring(0,50) + ') — pixel detection চেষ্টা হচ্ছে...', 'info');
+        pixelScanOMR(base64Image);
+    }
+}
+
+/* ============ PIXEL SCAN ============
+   4-column layout সঠিকভাবে handle করা হয়েছে।
+   OMR শিটের actual structure অনুযায়ী।
+*/
+function pixelScanOMR(base64Image) {
+    if (!questions.length) return;
+    status('🔍 Pixel analysis চলছে...', 'info');
+    const img = new Image();
+    img.onload = () => {
+        const W = img.naturalWidth, H = img.naturalHeight;
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const px = ctx.getImageData(0, 0, W, H).data;
+
+        function darkness(x, y, bw, bh) {
+            let dark = 0, total = 0;
+            for (let ry = y; ry < y + bh; ry++) {
+                for (let rx = x; rx < x + bw; rx++) {
+                    if (rx >= W || ry >= H) continue;
+                    const idx = (ry * W + rx) * 4;
+                    const gray = 0.299*px[idx] + 0.587*px[idx+1] + 0.114*px[idx+2];
+                    if (gray < 90) dark++;
+                    total++;
+                }
+            }
+            return total ? dark / total : 0;
+        }
+
+        const total    = questions.length;
+        const numCols  = 4;  // OMR-এ 4 column — এটাই সঠিক
+        const rowsPerCol = Math.ceil(total / numCols);
+
+        // OMR answer bubble area (image এর নিচের ~60%, সম্পূর্ণ width)
+        const areaTop    = Math.floor(H * 0.33);  // header skip করি
+        const areaHeight = Math.floor(H * 0.62);
+        const areaLeft   = Math.floor(W * 0.02);
+        const areaWidth  = Math.floor(W * 0.96);
+
+        const colW  = Math.floor(areaWidth / numCols);
+        const rowH  = Math.floor(areaHeight / rowsPerCol);
+        const bubW  = Math.floor(colW * 0.13);
+        const bubH  = Math.floor(rowH * 0.55);
+        const threshold = 0.16;
+
+        const result = new Array(total).fill(-1);
+
+        for (let col = 0; col < numCols; col++) {
+            for (let row = 0; row < rowsPerCol; row++) {
+                // 4-column layout: question index সঠিকভাবে বের করা
+                const qIdx = col * rowsPerCol + row;
+                if (qIdx >= total) continue;
+
+                // প্রতি column-এর শুরু + question number label skip (প্রায় 18% width)
+                const baseX = areaLeft + col * colW + Math.floor(colW * 0.20);
+                const baseY = areaTop  + row * rowH + Math.floor(rowH * 0.15);
+                const stepX = Math.floor(colW * 0.185);  // A B C D এর spacing
+
+                let maxDark = threshold;
+                let chosen  = -1;
+                for (let opt = 0; opt < 4; opt++) {
+                    const bx = baseX + opt * stepX;
+                    const d  = darkness(bx, baseY, bubW, bubH);
+                    if (d > maxDark) { maxDark = d; chosen = opt; }
+                }
+                result[qIdx] = chosen;
+            }
+        }
+
+        const detected = applyScannedAnswers(result);
+        status(`✅ Pixel scan সম্পন্ন! ${detected}টি উত্তর পাওয়া গেছে। ভুল থাকলে ক্লিক করে ঠিক করুন।`, 'success');
+    };
+    img.onerror = () => status('❌ ছবি load করতে ব্যর্থ।', 'error');
+    img.src = base64Image;
+}
+
+/* ============ BOOKLET VERIFY ============ */
+function verifyBooklet(scannedBooklet) {
+    const el = document.getElementById('bookletVerify');
+    // শুধু digits রাখো
+    const scanned  = String(scannedBooklet).replace(/\D/g, '');
+    const expected = String(bookletNo).replace(/\D/g, '');
+
+    if (!expected) {
+        // question file-এ booklet নেই — skip করো
+        el.className = 'booklet-verify';
+        return;
+    }
+    if (!scanned || scanned === '000000') {
+        el.textContent = `⚠️ OMR শিট থেকে বুকলেট নম্বর পড়া যায়নি। প্রত্যাশিত: ${expected}`;
+        el.className = 'booklet-verify bv-err';
+        return;
+    }
+    if (scanned === expected) {
+        el.textContent = `✅ বুকলেট নম্বর মিলেছে: ${expected}`;
+        el.className = 'booklet-verify bv-ok';
+    } else {
+        el.textContent = `🚨 বুকলেট নম্বর মিলেনি! স্ক্যান করা: ${scanned} | প্রশ্ন ফাইলের: ${expected} — সঠিক প্রশ্ন সিলেক্ট করেছেন?`;
+        el.className = 'booklet-verify bv-err';
+    }
+}
+
+/* ============ APPLY SCANNED ANSWERS ============ */
+function applyScannedAnswers(scanned) {
+    let detected = 0;
+    scanned.forEach((val, i) => {
+        if (i < answers.length && val >= -1 && val <= 3) {
+            answers[i] = val;
+            if (val !== -1) detected++;
+            ['A','B','C','D'].forEach((_, j) => {
+                const b = document.getElementById('b_' + i + '_' + j);
+                if (b) b.classList.remove('sel','correct','wrong');
+            });
+            if (val !== -1) {
+                const b = document.getElementById('b_' + i + '_' + val);
+                if (b) b.classList.add('sel');
+            }
+        }
+    });
+    return detected;
+}
+
+/* ============ INIT ============ */
+document.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('evalSelect');
+    (window.availableMockTests || []).forEach(f => {
+        const o = document.createElement('option');
+        o.value = f;
+        o.textContent = f.replace('.js','').replace(/_/g,' ');
+        sel.appendChild(o);
+    });
+    updateMasks();
+    window.addEventListener('resize', updateMasks);
+});
+
+/* ============ LOAD TEST ============ */
+function loadTest() {
+    const sel = document.getElementById('evalSelect');
+    if (!sel.value) return;
+    examName = sel.value;
+    let fn = sel.value;
+    if (!fn.startsWith('question/')) fn = 'question/' + fn;
+    const old = document.getElementById('dynScript');
+    if (old) old.remove();
+
+    // window variable clean করো
+    window.currentMockTestBookletNo = '';
+
+    const sc = document.createElement('script');
+    sc.id = 'dynScript'; sc.src = fn;
+    sc.onload = () => {
+        if (window.currentMockTestData) {
+            questions = window.currentMockTestData;
+            answers   = new Array(questions.length).fill(-1);
+            buildGrid();
+
+            // সবসময় .js ফাইল থেকেই booklet number নেওয়া হবে — localStorage নয়
+            bookletNo = window.currentMockTestBookletNo || '';
+            if (!bookletNo) {
+                status('⚠️ এই প্রশ্ন ফাইলে Booklet Number নেই! Question JS-এ যোগ করুন।', 'error');
+            }
+            showBookletInfo(bookletNo);
+
+            const label = sel.value.replace('.js','').replace(/_/g,' ');
+            document.getElementById('topbarSub').textContent = label + (bookletNo ? ' | BN:'+bookletNo : ' | ⚠️ BN নেই');
+
+            if (capturedData) {
+                document.getElementById('bubbleSec').style.display = 'block';
+                document.getElementById('submitBtn').style.display = 'block';
+            }
+            status('✅ ' + label + ' লোড! বুকলেট: ' + (bookletNo || '❌ নেই') + ' | এখন OMR স্ক্যান করুন।', 'success');
+            closeSidebar();
+        } else {
+            status('❌ ফাইলে বৈধ ডেটা নেই!', 'error');
+        }
+    };
+    sc.onerror = () => status('❌ ফাইল লোড ব্যর্থ!', 'error');
+    document.head.appendChild(sc);
+}
+
+function showBookletInfo(bn) {
+    const box    = document.getElementById('bookletInfoBox');
+    const digits = document.getElementById('bookletDigits');
+    if (!bn) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    digits.innerHTML = bn.split('').map(d =>
+        `<div class="booklet-digit">${d}</div>`
+    ).join('');
+}
+
+/* ============ BUBBLE GRID — 4 column layout ============ */
+function buildGrid() {
+    const g = document.createElement('div');
+    g.className = 'bub-columns';
+    const total      = questions.length;
+    const numCols    = 4;
+    const rowsPerCol = Math.ceil(total / numCols);
+
+    // 4 column group: প্রতিটি column এ rowsPerCol প্রশ্ন
+    const cols = [];
+    for (let c = 0; c < numCols; c++) {
+        const colDiv = document.createElement('div');
+        colDiv.style.cssText = 'display:flex;flex-direction:column;gap:3px;';
+        cols.push(colDiv);
+    }
+
+    questions.forEach((q, i) => {
+        const col = Math.floor(i / rowsPerCol);  // কোন column-এ যাবে
+        const row = document.createElement('div');
+        row.className = 'bub-row';
+
+        const n = document.createElement('span');
+        n.className = 'bub-qn';
+        n.textContent = (i+1)+'.';
+        row.appendChild(n);
+
+        ['A','B','C','D'].forEach((l, j) => {
+            const b = document.createElement('div');
+            b.className = 'bub-opt';
+            b.textContent = l;
+            b.id = 'b_'+i+'_'+j;
+            b.onclick = () => selBub(i, j);
+            row.appendChild(b);
+        });
+
+        if (cols[col]) cols[col].appendChild(row);
+    });
+
+    // 2x2 grid এ 4 column দেখানো (mobile-friendly)
+    const bubGrid = document.getElementById('bubGrid');
+    bubGrid.innerHTML = '';
+    // 4 column কে 2টো করে দুই row-তে ভাগ করি যাতে mobile-এ ভালো দেখায়
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+    cols.forEach(c => wrapper.appendChild(c));
+    bubGrid.appendChild(wrapper);
+}
+
+function selBub(qi, oi) {
+    ['A','B','C','D'].forEach((_,j) => {
+        const b = document.getElementById('b_'+qi+'_'+j);
+        if (b) b.classList.remove('sel','correct','wrong');
+    });
+    if (answers[qi] === oi) {
+        answers[qi] = -1;
+    } else {
+        answers[qi] = oi;
+        const b = document.getElementById('b_'+qi+'_'+oi);
+        if (b) b.classList.add('sel');
+    }
+}
+
+/* ============ CAMERA MASKS ============ */
+function updateMasks() {
+    const fw = window.innerWidth, fh = window.innerHeight;
+    const frameW = fw * 0.88, frameH = fh * 0.65;
+    const frameX = (fw - frameW) / 2, frameY = (fh - frameH) / 2;
+    const maskTop = document.getElementById('maskTop');
+    if (!maskTop) return;
+    document.getElementById('maskTop').style.cssText = `height:${frameY}px;top:0;`;
+    document.getElementById('maskBot').style.cssText = `height:${fh-frameY-frameH}px;bottom:0;`;
+    document.getElementById('maskLft').style.cssText = `top:${frameY}px;height:${frameH}px;width:${frameX}px;`;
+    document.getElementById('maskRgt').style.cssText = `top:${frameY}px;height:${frameH}px;width:${fw-frameX-frameW}px;`;
+    frameRect = { x: frameX, y: frameY, w: frameW, h: frameH };
+}
+
+/* ============ TAB SWITCH ============ */
+function switchTab(t) {
+    curTab = t;
+    document.getElementById('btnCam').classList.toggle('active', t==='cam');
+    document.getElementById('btnUpload').classList.toggle('active', t==='upload');
+    document.getElementById('camControls').style.display    = t==='cam'    ? 'block' : 'none';
+    document.getElementById('uploadControls').style.display = t==='upload' ? 'block' : 'none';
+    document.getElementById('uploadBox').style.display      = t==='upload' ? 'block' : 'none';
+    if (t==='upload') closeCam();
+}
+
+/* ============ CAMERA ============ */
+async function openCam() {
+    closeSidebar();
+    if (!navigator.mediaDevices?.getUserMedia) {
+        status('⚠️ ক্যামেরা সাপোর্ট নেই।', 'error');
+        document.getElementById('mobileCapBtn').style.display = 'block';
+        return;
+    }
+    try {
+        if (camStream) stopStream();
+        camStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+            audio: false
+        });
+        const vid = document.getElementById('camVideo');
+        vid.srcObject = camStream;
+        vid.onloadedmetadata = () => vid.play().then(() => {
+            updateMasks();
+            document.getElementById('camModal').classList.add('open');
+            startAutoDetect();
+        });
+    } catch(e) {
+        let msg = '❌ ক্যামেরা চালু হয়নি।';
+        if (e.name==='NotAllowedError') msg = '❌ ক্যামেরা পারমিশন দিন।';
+        if (e.name==='NotFoundError')   msg = '❌ ক্যামেরা পাওয়া যায়নি।';
+        status(msg, 'error');
+        document.getElementById('mobileCapBtn').style.display = 'block';
+    }
+}
+function closeCam() {
+    stopStream(); stopAutoDetect();
+    document.getElementById('camModal').classList.remove('open');
+}
+function stopStream() {
+    if (camStream) { camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    document.getElementById('camVideo').srcObject = null;
+}
+
+/* ============ AUTO-DETECT ============ */
+let detCount = 0;
+function startAutoDetect() {
+    detCount = 0;
+    autoInterval = setInterval(() => {
+        const vid = document.getElementById('camVideo');
+        if (!vid || vid.videoWidth===0) return;
+        const vw = vid.videoWidth, vh = vid.videoHeight;
+        const fw = window.innerWidth, fh = window.innerHeight;
+        const scaleX = vw / fw, scaleY = vh / fh;
+        const fr = frameRect || { x: fw*0.06, y: fh*0.175, w: fw*0.88, h: fh*0.65 };
+        const tc = document.createElement('canvas');
+        tc.width=80; tc.height=80;
+        const ctx = tc.getContext('2d');
+        ctx.drawImage(vid, Math.round(fr.x*scaleX), Math.round(fr.y*scaleY), Math.round(fr.w*scaleX), Math.round(fr.h*scaleY), 0, 0, 80, 80);
+        const corners = [
+            ctx.getImageData(4,4,1,1).data, ctx.getImageData(75,4,1,1).data,
+            ctx.getImageData(4,75,1,1).data, ctx.getImageData(75,75,1,1).data
+        ];
+        const dark = corners.filter(p => (p[0]+p[1]+p[2])/3 < 90).length;
+        if (dark >= 2) {
+            detCount++;
+            setDet(true);
+            document.getElementById('camTopBar').textContent = '✅ OMR শনাক্ত হচ্ছে... (' + detCount + '/4)';
+            if (detCount >= 4) { stopAutoDetect(); bip(); setTimeout(() => doCaptureFromCam(true), 200); }
+        } else {
+            detCount = 0; setDet(false);
+            document.getElementById('camTopBar').textContent = '📷 OMR শিটটি ফ্রেমের মধ্যে ধরুন...';
+        }
+    }, 700);
+}
+function stopAutoDetect() { if(autoInterval){clearInterval(autoInterval);autoInterval=null;} }
+function setDet(d) {
+    ['c_tl','c_tr','c_bl','c_br'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('det', d);
+    });
+}
+
+/* ============ CAPTURE ============ */
+function doCaptureFromCam(auto=false) {
+    const vid = document.getElementById('camVideo');
+    if (!camStream || !vid.srcObject || vid.videoWidth===0) return;
+    const vw = vid.videoWidth, vh = vid.videoHeight;
+    const fw = window.innerWidth, fh = window.innerHeight;
+    const videoAR = vw / vh, screenAR = fw / fh;
+    let renderW, renderH, offX = 0, offY = 0;
+    if (videoAR > screenAR) {
+        renderH = fh; renderW = fh * videoAR; offX = (renderW - fw) / 2;
+    } else {
+        renderW = fw; renderH = fw / videoAR; offY = (renderH - fh) / 2;
+    }
+    const scaleX = vw / renderW, scaleY = vh / renderH;
+    const fr = frameRect || { x: fw*0.06, y: fh*0.175, w: fw*0.88, h: fh*0.65 };
+    const srcX = Math.round((fr.x + offX) * scaleX);
+    const srcY = Math.round((fr.y + offY) * scaleY);
+    const srcW = Math.round(fr.w * scaleX);
+    const srcH = Math.round(fr.h * scaleY);
+    const c = document.getElementById('cc');
+    c.width = srcW; c.height = srcH;
+    c.getContext('2d').drawImage(vid, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+    const rawData = c.toDataURL('image/jpeg', 0.93);
+    closeCam();
+    status(auto ? '✂️ অটো ক্যাপচার! Crop হচ্ছে...' : '📸 ক্যাপচার! Crop হচ্ছে...', 'info');
+    // camera-তেও smart crop apply করো
+    smartCropAndProcess(rawData);
+}
+
+/* ============ FILE UPLOAD ============ */
+function handleFile(e) { const f=e.target.files[0]; if(f) readFile(f); }
+function dropFile(e) {
+    e.preventDefault();
+    document.getElementById('uploadBox').classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) readFile(f);
+}
+function readFile(f) {
+    const r = new FileReader();
+    r.onload = ev => {
+        status('✂️ ছবি crop হচ্ছে...', 'info');
+        smartCropAndProcess(ev.target.result);
+    };
+    r.readAsDataURL(f);
+}
+
+/* Smart Auto-Crop: ছবির চারপাশের সাদা/খালি জায়গা কেটে শুধু OMR sheet রাখে */
+function smartCropAndProcess(dataUrl) {
+    const img = new Image();
+    img.onload = () => {
+        const W = img.naturalWidth, H = img.naturalHeight;
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const px = ctx.getImageData(0, 0, W, H).data;
+
+        // প্রতিটি pixel চেক — যেগুলো "non-white" সেগুলোর boundary বের করো
+        // threshold: R<240 OR G<240 OR B<240 হলে content pixel
+        let minX=W, minY=H, maxX=0, maxY=0;
+        const THR = 235; // white threshold
+        for (let y=0; y<H; y++) {
+            for (let x=0; x<W; x++) {
+                const idx4 = (y*W+x)*4;
+                const r=px[idx4], g=px[idx4+1], b=px[idx4+2];
+                if (r<THR || g<THR || b<THR) {
+                    if (x<minX) minX=x;
+                    if (x>maxX) maxX=x;
+                    if (y<minY) minY=y;
+                    if (y>maxY) maxY=y;
+                }
+            }
+        }
+
+        // কোনো content না পেলে original রাখো
+        if (maxX <= minX || maxY <= minY) {
+            finishImageLoad(dataUrl);
+            return;
+        }
+
+        // ৩% padding যোগ করো crop করা ছবিতে
+        const padX = Math.round(W * 0.03);
+        const padY = Math.round(H * 0.02);
+        const cx = Math.max(0, minX - padX);
+        const cy = Math.max(0, minY - padY);
+        const cw = Math.min(W, maxX + padX) - cx;
+        const ch = Math.min(H, maxY + padY) - cy;
+
+        // crop করা অংশ নতুন canvas-এ আঁকো
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width  = cw;
+        cropCanvas.height = ch;
+        cropCanvas.getContext('2d').drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
+        const cropped = cropCanvas.toDataURL('image/jpeg', 0.93);
+        finishImageLoad(cropped);
+    };
+    img.src = dataUrl;
+}
+
+function finishImageLoad(dataUrl) {
+    capturedData = dataUrl;
+    showPreview(capturedData);
+    document.getElementById('uploadBox').style.display = 'none';
+    if (questions.length > 0) {
+        document.getElementById('bubbleSec').style.display = 'block';
+        document.getElementById('submitBtn').style.display = 'block';
+        document.getElementById('bubbleSec').scrollIntoView({ behavior: 'smooth' });
+    }
+    status('✅ ছবি crop ও আপলোড সফল! AI স্ক্যান শুরু হচ্ছে...', 'success');
+    if (questions.length > 0) aiScanOMR(capturedData);
+}
+function showPreview(src) {
+    document.getElementById('prevImg').src = src;
+    document.getElementById('capPreview').style.display = 'block';
+}
+function removeImg() {
+    capturedData = null;
+    document.getElementById('capPreview').style.display = 'none';
+    document.getElementById('prevImg').src = '';
+    document.getElementById('bubbleSec').style.display = 'none';
+    document.getElementById('submitBtn').style.display = 'none';
+    document.getElementById('resultBox').style.display = 'none';
+    document.getElementById('omrVisualResult').style.display = 'none';
+    document.getElementById('omrGridResult').innerHTML = '';
+    document.getElementById('bookletVerify').className = 'booklet-verify';
+    document.getElementById('bookletVerify').textContent = '';
+    if (curTab==='upload') document.getElementById('uploadBox').style.display = 'block';
+    document.getElementById('fi').value = '';
+    status('ছবি মুছে দেওয়া হয়েছে।', 'info');
+}
+
+/* ============ EVALUATE ============ */
+function evaluate() {
+    if (!questions.length) { status('⚠️ প্রথমে একটি মক টেস্ট সিলেক্ট করুন!', 'error'); return; }
+    const neg = 0.25;
+    let cor=0, wr=0, sk=0;
+    const items=[];
+    const L=['A','B','C','D'];
+    questions.forEach((q,i) => {
+        const sa=answers[i], ca=q.correct;
+        ['A','B','C','D'].forEach((_,j)=>{
+            const b=document.getElementById('b_'+i+'_'+j);
+            if(b) b.classList.remove('sel','correct','wrong');
+        });
+        if (sa===-1) {
+            sk++;
+            items.push({i:i+1,s:'skip',sa,ca});
+            // skip হলে সঠিক bubble হলুদ দেখাও
+            const yb=document.getElementById('b_'+i+'_'+ca);
+            if(yb) yb.classList.add('skipped');
+        } else if (sa===ca) {
+            cor++; items.push({i:i+1,s:'ok',sa,ca});
+            const b=document.getElementById('b_'+i+'_'+sa); if(b) b.classList.add('correct');
+        } else {
+            wr++; items.push({i:i+1,s:'bad',sa,ca});
+            const wb=document.getElementById('b_'+i+'_'+sa); if(wb) wb.classList.add('wrong');
+            const cb=document.getElementById('b_'+i+'_'+ca); if(cb) cb.classList.add('correct');
+        }
+    });
+    const total = questions.length;
+    const score = Math.max(0, cor - wr*neg);
+    const en    = examName.replace('.js','').replace(/_/g,' ').toUpperCase();
+    document.getElementById('rName').textContent    = en;
+    document.getElementById('rBooklet').textContent = bookletNo || 'N/A';
+    document.getElementById('mT').textContent       = total;
+    document.getElementById('mC').textContent       = cor;
+    document.getElementById('mW').textContent       = wr;
+    document.getElementById('mS').textContent       = sk;
+    document.getElementById('mScore').textContent   = score.toFixed(2);
+    document.getElementById('mMax').textContent     = '/ ' + total;
+    document.getElementById('rCS').textContent      = '+' + cor.toFixed(2);
+    document.getElementById('rWS').textContent      = '-' + (wr*neg).toFixed(2);
+    document.getElementById('rNL').textContent      = 'ভুল (×'+neg+')';
+    const rl = document.getElementById('reviewList');
+    rl.innerHTML = '';
+    items.forEach(it => {
+        const d = document.createElement('div');
+        d.className = 'r-item ' + it.s;
+        const ic = it.s==='ok'?'✅':it.s==='bad'?'❌':'⭕';
+        const tx = it.s==='ok'
+            ? 'উত্তর: '+L[it.sa]+' (সঠিক)'
+            : it.s==='bad'
+                ? 'আপনার: '+L[it.sa]+' | সঠিক: '+L[it.ca]
+                : 'বাদ (সঠিক: '+L[it.ca]+')';
+        d.innerHTML = '<span class="rn">Q'+it.i+'</span>'
+                    + '<span style="font-size:15px">'+ic+'</span>'
+                    + '<span>'+tx+'</span>';
+        rl.appendChild(d);
+    });
+    document.getElementById('resultBox').style.display = 'block';
+
+    // OMR Visual Result Grid তৈরি করো
+    buildOMRVisualResult(items);
+
+    document.getElementById('resultBox').scrollIntoView({behavior:'smooth'});
+    bip();
+    status('✅ মূল্যায়ন সম্পন্ন! সবুজ=সঠিক | লাল=ভুল | হলুদ=খালি', 'success');
+}
+
+/* ============ OMR VISUAL RESULT ============ */
+function buildOMRVisualResult(items) {
+    const grid = document.getElementById('omrGridResult');
+    grid.innerHTML = '';
+    const total    = items.length;
+    const numCols  = 4;
+    const rowsPerCol = Math.ceil(total / numCols);
+    const L = ['A','B','C','D'];
+
+    for (let col = 0; col < numCols; col++) {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'omr-col-result';
+
+        for (let row = 0; row < rowsPerCol; row++) {
+            const idx = col * rowsPerCol + row;
+            if (idx >= total) break;
+            const it = items[idx];
+            // it: {i, s:'ok'|'bad'|'skip', sa, ca}
+
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'omr-row-result';
+
+            // Question number
+            const qno = document.createElement('span');
+            qno.className = 'omr-qno';
+            qno.textContent = it.i;
+            rowDiv.appendChild(qno);
+
+            // 4 bubbles: A B C D
+            for (let opt = 0; opt < 4; opt++) {
+                const bDiv = document.createElement('div');
+                bDiv.className = 'omr-bubble-r';
+                bDiv.textContent = L[opt];
+
+                if (it.s === 'skip') {
+                    // সব খালি — correct answer হলুদ দিয়ে দেখাও
+                    if (opt === it.ca) {
+                        bDiv.classList.add('b-skipped');
+                        bDiv.title = 'সঠিক উত্তর (খালি রেখেছেন)';
+                    }
+                } else if (it.s === 'ok') {
+                    // সঠিক — filled bubble সবুজ
+                    if (opt === it.sa) {
+                        bDiv.classList.add('b-filled-correct');
+                        bDiv.title = 'সঠিক ✅';
+                    }
+                } else {
+                    // ভুল
+                    if (opt === it.sa) {
+                        // student যেটা দাগিয়েছে — লাল
+                        bDiv.classList.add('b-filled-wrong');
+                        bDiv.title = 'ভুল উত্তর ❌';
+                    } else if (opt === it.ca) {
+                        // সঠিক উত্তর — সবুজ outline
+                        bDiv.classList.add('b-empty-correct');
+                        bDiv.title = 'সঠিক উত্তর ✅';
+                    }
+                }
+                rowDiv.appendChild(bDiv);
+            }
+            colDiv.appendChild(rowDiv);
+        }
+        grid.appendChild(colDiv);
+    }
+    document.getElementById('omrVisualResult').style.display = 'block';
+}
+
+/* ============ BIP ============ */
+function bip() {
+    try {
+        const ac = new (window.AudioContext||window.webkitAudioContext)();
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.connect(g); g.connect(ac.destination);
+        o.type='sine'; o.frequency.value=1200;
+        g.gain.setValueAtTime(0.35,ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.22);
+        o.start(); o.stop(ac.currentTime+0.22);
+    } catch(e){}
+}
+
+/* ============ STATUS ============ */
+function status(msg, type) {
+    const el = document.getElementById('statusBar');
+    el.textContent = msg;
+    el.className = 'status-bar s-'+type;
+    if (type !== 'error') setTimeout(() => { el.className='status-bar'; }, 6000);
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(() => console.log('SW registered'))
+            .catch(e => console.log('SW error:', e));
+    });
+}
+</script>
+</body>
+</html>
