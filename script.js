@@ -395,15 +395,11 @@ function generateProfessionalOMR(totalQ, coaching, test) {
     let html = `
     <div class="omr-pro-page" style="position:relative;">
 
-        <!-- চার কোণার স্ক্যান মার্কার -->
-        <div style="position:absolute; top:6px; left:6px; width:32px; height:32px;
-                    border-top:4px solid #000; border-left:4px solid #000;"></div>
-        <div style="position:absolute; top:6px; right:6px; width:32px; height:32px;
-                    border-top:4px solid #000; border-right:4px solid #000;"></div>
-        <div style="position:absolute; bottom:6px; left:6px; width:32px; height:32px;
-                    border-bottom:4px solid #000; border-left:4px solid #000;"></div>
-        <div style="position:absolute; bottom:6px; right:6px; width:32px; height:32px;
-                    border-bottom:4px solid #000; border-right:4px solid #000;"></div>
+        <!-- চার কোণার স্ক্যান মার্কার — Solid Square Box (A4 corner-এ) -->
+        <div style="position:absolute;top:0;left:0;width:38px;height:38px;background:#000;border-radius:0 0 4px 0;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
+        <div style="position:absolute;top:0;right:0;width:38px;height:38px;background:#000;border-radius:0 0 0 4px;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
+        <div style="position:absolute;bottom:0;left:0;width:38px;height:38px;background:#000;border-radius:0 4px 0 0;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
+        <div style="position:absolute;bottom:0;right:0;width:38px;height:38px;background:#000;border-radius:4px 0 0 0;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
 
         <div class="omr-pro-header">
             <h2>${coaching}</h2>

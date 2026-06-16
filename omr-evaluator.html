@@ -280,12 +280,14 @@
     <div class="status-bar" id="statusBar"></div>
     <div class="booklet-verify" id="bookletVerify"></div>
 
-    <!-- প্রিভিউ -->
+    <!-- প্রিভিউ — canvas overlay দিয়ে bubble দেখানো হবে -->
     <div class="cap-preview" id="capPreview">
-        <img id="prevImg" src="" alt="OMR">
+        <canvas id="omrOverlayCanvas" style="width:100%;border-radius:10px;border:3px solid #10ac84;display:block;"></canvas>
+        <img id="prevImg" src="" alt="OMR" style="display:none;">
         <button class="remove-btn" onclick="removeImg()">✕</button>
         <span class="crop-badge" id="cropBadge">✂️ অটো ক্রপ হয়েছে</span>
-        <button style="position:absolute;bottom:8px;right:8px;background:rgba(46,134,222,0.9);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;" onclick="openCropModal()">✂️ ম্যানুয়াল ক্রপ</button>
+        <button style="position:absolute;bottom:8px;left:8px;background:rgba(46,134,222,0.9);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;" onclick="openCropModal()">✂️ ম্যানুয়াল ক্রপ</button>
+        <button id="overlayToggleBtn" style="display:none;position:absolute;bottom:8px;right:8px;background:rgba(52,31,151,0.9);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;" onclick="toggleOverlay()">👁️ Overlay</button>
     </div>
 
     <!-- আপলোড -->
@@ -928,45 +930,63 @@ let cropImg = null, cropCanvas = null, cropCtx = null;
 let cropSel = null, cropDragging = false, cropStart = null;
 let cropScale = 1;
 
-/* ---- L-shape corner marker detector ---- */
+/* ---- Solid Corner Box Detector ----
+   OMR PDF-এ চার কোণায় solid black square (36×36px, white inner 22×22) আছে।
+   Strategy: প্রতিটি corner zone-এ সবচেয়ে dense dark square region খুঁজি,
+   তারপর সেই square-এর exact outer edge বের করি।
+*/
 function detectCornerMarkers(px, W, H) {
-    /* OMR PDF-এর corner: top-left, top-right, bottom-left, bottom-right
-       প্রতিটি corner এ ~32x32px L-shape কালো marker আছে।
-       Strategy: প্রতিটি corner region-এ horizontal+vertical dark line খুঁজি */
 
-    function darkRatio(x, y, w, h) {
+    function grayAt(x, y) {
+        if (x < 0 || y < 0 || x >= W || y >= H) return 255;
+        const i = (y * W + x) * 4;
+        return 0.299*px[i] + 0.587*px[i+1] + 0.114*px[i+2];
+    }
+
+    function darkRatio(x, y, bw, bh) {
         let dark = 0, total = 0;
-        for (let ry = y; ry < Math.min(y+h, H); ry++) {
-            for (let rx = x; rx < Math.min(x+w, W); rx++) {
-                const i4 = (ry*W+rx)*4;
-                if ((0.299*px[i4]+0.587*px[i4+1]+0.114*px[i4+2]) < 80) dark++;
+        for (let ry = y; ry < Math.min(y+bh, H); ry++)
+            for (let rx = x; rx < Math.min(x+bw, W); rx++) {
+                if (grayAt(rx, ry) < 90) dark++;
                 total++;
             }
-        }
-        return total ? dark/total : 0;
+        return total ? dark / total : 0;
     }
 
-    // Search zone: ছবির প্রথম/শেষ 20% area
-    const ZX = Math.floor(W * 0.20), ZY = Math.floor(H * 0.20);
-    const SZ = 8; // scan step size
+    // প্রতিটি corner zone-এ 24×24 window দিয়ে scan করি (step 4px)
+    const ZX = Math.floor(W * 0.22), ZY = Math.floor(H * 0.22);
+    const WIN = 24, STEP = 4;
 
-    function findMarkerIn(x0, x1, y0, y1, preferX, preferY) {
-        // x0..x1, y0..y1 এর মধ্যে সবচেয়ে dark dense spot খুঁজি (16x16 window)
-        const WN = 16;
-        let best = 0, bx = preferX, by = preferY;
-        for (let y = y0; y < y1 - WN; y += SZ) {
-            for (let x = x0; x < x1 - WN; x += SZ) {
-                const d = darkRatio(x, y, WN, WN);
-                if (d > best) { best = d; bx = x + WN/2; by = y + WN/2; }
+    function findBox(x0, x1, y0, y1) {
+        let best = 0, bx = -1, by = -1;
+        for (let y = y0; y < y1 - WIN; y += STEP) {
+            for (let x = x0; x < x1 - WIN; x += STEP) {
+                // outer ring dark + inner lighter — solid square pattern
+                const outerD = darkRatio(x, y, WIN, WIN);
+                // center 10×10 এর darkness কম হওয়া উচিত (white inner)
+                const cx = x + WIN/2 - 5, cy = y + WIN/2 - 5;
+                const innerD = darkRatio(cx, cy, 10, 10);
+                // solid black border (outerD high) + white center (innerD low) = corner box
+                const score = outerD * (1 - innerD * 0.5);
+                if (score > best) { best = score; bx = x + WIN/2; by = y + WIN/2; }
             }
         }
-        return best > 0.25 ? { x: bx, y: by, conf: best } : null;
+        if (best < 0.20) return null;
+        // exact edge refinement: outer boundary খুঁজি
+        let ex = bx, ey = by;
+        // left edge
+        for (let rx = bx; rx >= Math.max(0, bx-WIN); rx--)
+            if (grayAt(rx, by) < 90) ex = rx;
+        // top edge
+        for (let ry = by; ry >= Math.max(0, by-WIN); ry--)
+            if (grayAt(bx, ry) < 90) ey = ry;
+        return { x: ex, y: ey, conf: best };
     }
 
-    const tl = findMarkerIn(0,    ZX,    0,    ZY,    20,    20);
-    const tr = findMarkerIn(W-ZX, W,     0,    ZY,    W-20,  20);
-    const bl = findMarkerIn(0,    ZX,    H-ZY, H,     20,    H-20);
-    const br = findMarkerIn(W-ZX, W,     H-ZY, H,     W-20,  H-20);
+    const tl = findBox(0,    ZX,    0,    ZY);
+    const tr = findBox(W-ZX, W,     0,    ZY);
+    const bl = findBox(0,    ZX,    H-ZY, H);
+    const br = findBox(W-ZX, W,     H-ZY, H);
 
     return { tl, tr, bl, br };
 }
@@ -1182,6 +1202,15 @@ function finishImageLoad(dataUrl, wasCropped=false, cropNote='') {
 function showPreview(src) {
     document.getElementById('prevImg').src = src;
     document.getElementById('capPreview').style.display = 'block';
+    // canvas-এ ছবি আঁকো
+    const cvs = document.getElementById('omrOverlayCanvas');
+    const img = new Image();
+    img.onload = () => {
+        cvs.width  = img.naturalWidth;
+        cvs.height = img.naturalHeight;
+        cvs.getContext('2d').drawImage(img, 0, 0);
+    };
+    img.src = src;
 }
 function removeImg() {
     capturedData = null;
@@ -1199,6 +1228,13 @@ function removeImg() {
     document.getElementById('bookletVerify').textContent = '';
     if (curTab==='upload') document.getElementById('uploadBox').style.display = 'block';
     document.getElementById('fi').value = '';
+    // overlay canvas clear করো
+    const cvs = document.getElementById('omrOverlayCanvas');
+    if (cvs) { cvs.width = 1; cvs.height = 1; }
+    const otb = document.getElementById('overlayToggleBtn');
+    if (otb) otb.style.display = 'none';
+    window._lastOverlayItems = null;
+    overlayVisible = true;
     status('ছবি মুছে দেওয়া হয়েছে।', 'info');
 }
 
@@ -1265,9 +1301,120 @@ function evaluate() {
     // OMR Visual Result Grid তৈরি করো
     buildOMRVisualResult(items);
 
+    // ছবির উপরে রঙিন bubble overlay আঁকো
+    drawOMROverlay(items);
+    document.getElementById('overlayToggleBtn').style.display = 'block';
+
     document.getElementById('resultBox').scrollIntoView({behavior:'smooth'});
     bip();
     status('✅ মূল্যায়ন সম্পন্ন! সবুজ=সঠিক | লাল=ভুল | হলুদ=খালি', 'success');
+}
+
+
+/* ===== OMR IMAGE OVERLAY — ছবির উপরে রঙিন bubble আঁকো ===== */
+let overlayVisible = true;
+
+function toggleOverlay() {
+    overlayVisible = !overlayVisible;
+    const cvs = document.getElementById('omrOverlayCanvas');
+    const btn = document.getElementById('overlayToggleBtn');
+    if (overlayVisible) {
+        // re-draw with overlay
+        if (window._lastOverlayItems) drawOMROverlay(window._lastOverlayItems);
+        btn.textContent = '👁️ Overlay';
+        btn.style.background = 'rgba(52,31,151,0.9)';
+    } else {
+        // শুধু original image দেখাও
+        const ctx = cvs.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+            cvs.width = img.naturalWidth; cvs.height = img.naturalHeight;
+            ctx.drawImage(img, 0, 0);
+        };
+        img.src = capturedData;
+        btn.textContent = '🎯 উত্তর দেখুন';
+        btn.style.background = 'rgba(16,172,132,0.9)';
+    }
+}
+
+function drawOMROverlay(items) {
+    window._lastOverlayItems = items;
+    if (!capturedData || !items || items.length === 0) return;
+    const cvs = document.getElementById('omrOverlayCanvas');
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+        const W = img.naturalWidth, H = img.naturalHeight;
+        cvs.width = W; cvs.height = H;
+        ctx.drawImage(img, 0, 0);
+
+        const total     = items.length;
+        const numCols   = 4;
+        const rowsPerCol = Math.ceil(total / numCols);
+
+        // Pixel scan-এর মতোই একই coordinate system ব্যবহার করো
+        const areaTop    = Math.floor(H * 0.28);
+        const areaHeight = Math.floor(H * 0.68);
+        const areaLeft   = Math.floor(W * 0.01);
+        const areaWidth  = Math.floor(W * 0.98);
+        const colW  = Math.floor(areaWidth / numCols);
+        const rowH  = Math.floor(areaHeight / rowsPerCol);
+        const bubW  = Math.max(8, Math.floor(colW * 0.12));
+        const bubH  = Math.max(8, Math.floor(rowH * 0.50));
+        const stepX = Math.floor(colW * 0.18);
+        const r     = Math.min(bubW, bubH) / 2 + 2;  // circle radius
+
+        const L = ['A','B','C','D'];
+
+        items.forEach((it, idx) => {
+            const col = Math.floor(idx / rowsPerCol);
+            const row = idx % rowsPerCol;
+
+            const baseX = areaLeft + col * colW + Math.floor(colW * 0.22);
+            const baseY = areaTop  + row  * rowH + Math.floor(rowH * 0.12);
+
+            // প্রতিটি option (A B C D) এর জন্য circle আঁকো
+            for (let opt = 0; opt < 4; opt++) {
+                const cx = baseX + opt * stepX + bubW / 2;
+                const cy = baseY + bubH / 2;
+
+                let color = null;
+                let strokeOnly = false;
+
+                if (it.s === 'ok' && opt === it.sa) {
+                    color = '#2ecc71';   // সবুজ — সঠিক fill
+                } else if (it.s === 'bad') {
+                    if (opt === it.sa) color = '#e74c3c';   // লাল — ভুল fill
+                    else if (opt === it.ca) { color = '#27ae60'; strokeOnly = true; }  // সবুজ outline — সঠিক উত্তর
+                } else if (it.s === 'skip' && opt === it.ca) {
+                    color = '#f39c12';   // হলুদ — খালি রেখেছে
+                }
+
+                if (!color) continue;
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                if (strokeOnly) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth   = Math.max(2, r * 0.4);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle   = color;
+                    ctx.globalAlpha = 0.82;
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    // option letter
+                    ctx.fillStyle   = '#fff';
+                    ctx.font        = `bold ${Math.max(8, Math.floor(r))}px Arial`;
+                    ctx.textAlign   = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(L[opt], cx, cy);
+                }
+            }
+        });
+    };
+    img.src = capturedData;
 }
 
 /* ============ OMR VISUAL RESULT ============ */
