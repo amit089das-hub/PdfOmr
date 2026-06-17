@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMR স্ক্যান ও মূল্যায়ন</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #21253a;
+    --border: #2e3350;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'Noto Sans Bengali', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* --- ৩টি দাগ বিশিষ্ট টপ বার লেআউট --- */
+  .top-navbar {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 15px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+    margin-right: 15px;
+  }
+
+  .menu-btn .bar {
+    width: 22px;
+    height: 3px;
+    background-color: var(--text);
+    border-radius: 2px;
+    transition: 0.3s;
+  }
+
+  .nav-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* --- স্লাইড-আউট সাইডবার ড্রয়ার মেনু --- */
+  .sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: -320px;
+    width: 300px;
+    height: 100%;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    z-index: 2000;
+    transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    padding: 20px;
+  }
+
+  .sidebar-drawer.open {
+    left: 0;
+  }
+
+  .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+
+  .sidebar-header h3 {
+    font-size: 15px;
+    color: #fff;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .sidebar-section {
+    margin-bottom: 15px;
+  }
+
+  .sidebar-section label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 6px;
+  }
+
+  select, input[type="text"], input[type="number"] {
+    width: 100%;
+    background: #222533;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1500;
+    display: none;
+  }
+
+  .sidebar-overlay.show {
+    display: block;
+  }
+
+  /* --- আপনার অরিজিনাল ফাইলের মূল ডিজাইন ও লেআউট --- */
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 16px;
+  }
+
+  .steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    align-items: center;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text3);
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .step.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(79, 142, 247, 0.08);
+  }
+  .step.done {
+    color: var(--green);
+    border-color: rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.07);
+  }
+  .step-sep {
+    color: var(--text3);
+    font-size: 12px;
+  }
+
+  #cameraSection {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  #videoWrap {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto 14px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 2px solid var(--border);
+    background: #000;
+  }
+  #video {
+    width: 100%;
+    display: block;
+  }
+
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .scan-line {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: rgba(79, 142, 247, 0.7);
+    box-shadow: 0 0 10px var(--accent);
+    animation: scanMove 2s ease-in-out infinite;
+  }
+  @keyframes scanMove {
+    0%, 100% { top: 15%; }
+    50% { top: 85%; }
+  }
+
+  .corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .corner.tl { top: 12px; left: 12px; border-width: 3px 0 0 3px; }
+  .corner.tr { top: 12px; right: 12px; border-width: 3px 3px 0 0; }
+  .corner.bl { bottom: 12px; left: 12px; border-width: 0 0 3px 3px; }
+  .corner.br { bottom: 12px; right: 12px; border-width: 0 3px 3px 0; }
+
+  .live-hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    background: rgba(26, 29, 39, 0.85);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border);
+    z-index: 10;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 12px 22px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #3b5fc4);
+    color: #fff;
+  }
+  .btn-primary:disabled {
+    background: var(--surface);
+    color: var(--text3);
+    cursor: not-allowed;
+    border: 1px solid var(--border);
+  }
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .btn-next {
+    background: var(--accent2);
+    color: #fff;
+    display: none;
+    margin-top: 10px;
+  }
+
+  #omrResult {
+    display: none;
+  }
+
+  .alert {
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .alert.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--red);
+    color: #fca5a5;
+  }
+  .alert.success {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid var(--green);
+    color: #86efac;
+  }
+
+  .result-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-box .val {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .stat-box .lbl {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    color: var(--text2);
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .ans-key-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .ans-key-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .ans-key-item.ok { border-color: rgba(34, 197, 94, 0.3); background: rgba(34, 197, 94, 0.03); }
+  .ans-key-item.fail { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.03); }
+  .ans-key-item .q { font-weight: 600; }
+  .ans-key-item .correct { color: var(--text2); background: #222533; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+  #hiddenCanvas {
+    display: none;
+  }
+</style>
+<script src="file-list.js"></script>
+</head>
+<body>
+
+<div class="top-navbar">
+  <button class="menu-btn" onclick="toggleSidebar(true)">
+    <div class="bar"></div>
+    <div class="bar"></div>
+    <div class="bar"></div>
+  </button>
+  <div class="nav-title">📷 OMR স্ক্যান ও মূল্যায়ন</div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+
+<div class="sidebar-drawer" id="sidebarDrawer">
+  <div class="sidebar-header">
+    <h3>⚙️ এক্সাম কনফিগ প্যানেল</h3>
+    <button class="close-btn" onclick="toggleSidebar(false)">&times;</button>
+  </div>
+
+  <div class="sidebar-section">
+    <label>পরীক্ষার ফাইল নির্বাচন করুন:</label>
+    <select id="examSelect">
+      <option value="">-- পরীক্ষা সিলেক্ট করুন --</option>
+    </select>
+  </div>
+
+  <div class="sidebar-section">
+    <label>বুকলেট নম্বর (.js ফাইল থেকে):</label>
+    <input type="text" id="bookletInput" readonly placeholder="অটো লোড হবে">
+  </div>
+
+  <div class="sidebar-section">
+    <label>মোট প্রশ্ন সংখ্যা:</label>
+    <input type="number" id="totalQInput" readonly placeholder="প্রশ্ন সংখ্যা">
+  </div>
+</div>
+
+<div class="container">
+  <div class="steps">
+    <div class="step active" id="step1">① পরীক্ষা বাছুন</div>
+    <div class="step-sep">›</div>
+    <div class="step" id="step2">② লাইভ স্ক্যান</div>
+    <div class="step-sep">›</div>
+    <div class="step" id="step3">③ ফলাফল</div>
+  </div>
+
+  <div id="cameraSection">
+    <div id="videoWrap">
+      <div class="live-hud">
+        <div id="studentDisplay" style="color:#fff;">👤 রোল স্ক্যান করুন...</div>
+        <div id="statusWarning" style="color:var(--red); font-weight:bold;"></div>
+      </div>
+      <video id="video" autoplay playsinline></video>
+      <div class="scan-overlay">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+    <canvas id="hiddenCanvas"></canvas>
+    
+    <button class="btn btn-primary" id="scanBtn" onclick="processLiveOMR()" disabled>🔍 ওএমআর শিট স্ক্যান করুন</button>
+  </div>
+
+  <div id="omrResult">
+    <div id="bookletAlert"></div>
+    
+    <div class="result-summary">
+      <div class="stat-box"><div class="val" id="hudTotal" style="color:#fff;">-</div><div class="lbl">মোট প্রশ্ন</div></div>
+      <div class="stat-box"><div class="val" id="hudCorrect" style="color:var(--green);">-</div><div class="lbl">সঠিক</div></div>
+      <div class="stat-box"><div class="val" id="hudWrong" style="color:var(--red);">-</div><div class="lbl">ভুল</div></div>
+      <div class="stat-box"><div class="val" id="hudScore" style="color:var(--yellow);">-</div><div class="lbl">স্কোর</div></div>
+    </div>
+
+    <div class="section-title">উত্তরপত্র বিশ্লেষণ (Answer Details)</div>
+    <div class="ans-key-grid" id="answerKeyGrid"></div>
+
+    <button id="scanNextBtn" class="btn btn-next" onclick="resetScannerForNext()">🔄 Scan Next OMR (পরবর্তী খাতা)</button>
+  </div>
+</div>
+
+<script>
+// আপনার গুগল অ্যাপস স্ক্রিপ্ট ওয়েব অ্যাপ ইউআরএল
+const SCRIPT_URL = "YOUR_SCRIPT_URL_HERE"; 
+
+let stream = null;
+let loadedQuestions = [];
+let currentBookletNo = "";
+let detectedAnswers = [];
+let isProcessing = false;
+
+// সাইডবার মেনু ড্রয়ার ওপেন/ক্লোজ করা
+function toggleSidebar(open) {
+  const drawer = document.getElementById('sidebarDrawer');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (open) {
+    drawer.classList.add('open');
+    overlay.classList.add('show');
+  } else {
+    drawer.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+}
+
+// ফাইল লিস্ট থেকে ড্রপডাউন পপুলেট করা
+document.addEventListener("DOMContentLoaded", function () {
+  startCamera();
+  const sel = document.getElementById("examSelect");
+  if (window.availableMockTests && window.availableMockTests.length > 0) {
+    window.availableMockTests.forEach(f => {
+      const o = document.createElement("option");
+      o.value = f;
+      o.textContent = f.replace(".js", "").replace(/_/g, " ");
+      sel.appendChild(o);
+    });
+  }
+});
+
+// মক টেস্ট সিলেক্ট করা হলে 'question/' ফোল্ডার থেকে ফাইল লোড হওয়া
+document.getElementById("examSelect").addEventListener("change", function () {
+  const file = this.value;
+  if (!file) {
+    document.getElementById("scanBtn").disabled = true;
+    document.getElementById("bookletInput").value = "";
+    document.getElementById("totalQInput").value = "";
+    return;
+  }
+
+  const old = document.getElementById("dynScript");
+  if (old) old.remove();
+
+  // এখানে প্রশ্ন ফোল্ডারের সঠিক পাথ 'question/' যুক্ত করা হলো
+  const sc = document.createElement("script");
+  sc.id = "dynScript";
+  sc.src = "question/" + file; 
+  sc.onload = () => {
+    if (window.currentMockTestData) {
+      loadedQuestions = window.currentMockTestData.questions || window.currentMockTestData;
+      currentBookletNo = window.currentMockTestData.bookletNo || "";
+      
+      document.getElementById("totalQInput").value = loadedQuestions.length;
+      document.getElementById("bookletInput").value = currentBookletNo;
+      document.getElementById("scanBtn").disabled = false;
+      
+      toggleSidebar(false); // সিলেক্ট হওয়া মাত্র সাইডবার অফ হবে
+      setStep(2);
+    }
+  };
+  document.head.appendChild(sc);
+});
+
+// ক্যামেরা চালু করা
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: 1280, height: 720 }
+    });
+    document.getElementById("video").srcObject = stream;
+  } catch (e) {
+    console.error("ক্যামেরা অন করতে ব্যর্থ:", e);
+  }
+}
+
+// ওএমআর প্রসেসিং ইভেন্ট
+async function processLiveOMR() {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  let mockDetectedRoll = "785634"; 
+  let mockDetectedBooklet = currentBookletNo; 
+
+  document.getElementById("studentDisplay").innerText = "🔍 তথ্য মেলানো হচ্ছে...";
+
+  try {
+    const response = await fetch(`${SCRIPT_URL}?action=getStudentInfo&rollNumber=${mockDetectedRoll}`);
+    const student = await response.json();
+
+    if (student.status === "success") {
+      document.getElementById("studentDisplay").innerHTML = `👤 <span style="color:var(--green)">${student.name}</span>`;
+      
+      if (mockDetectedBooklet !== currentBookletNo) {
+        document.getElementById("statusWarning").innerText = "⚠️ বুকলেট মেলেনি!";
+        document.getElementById("bookletAlert").innerHTML = `<div class="alert error">❌ বুকলেট নম্বর মেলেনি! মূল্যায়ন স্থগিত।</div>`;
+        renderAnswerKeyGrid(false);
+        document.getElementById("omrResult").style.display = "block";
+        document.getElementById("scanNextBtn").style.display = "block";
+        setStep(3);
+        return;
+      }
+
+      calculateResults(mockDetectedRoll, mockDetectedBooklet);
+    } else {
+      document.getElementById("studentDisplay").innerText = "❌ রোল নম্বর পাওয়া যায়নি!";
+      document.getElementById("scanNextBtn").style.display = "block";
+    }
+  } catch (e) {
+    document.getElementById("studentDisplay").innerText = "⚠️ সার্ভার সংযোগ ত্রুটি!";
+    isProcessing = false;
+  }
+}
+
+// রেজাল্ট হিসাব করা
+function calculateResults(roll, booklet) {
+  const totalQ = loadedQuestions.length;
+  let correct = 0, wrong = 0;
+
+  detectedAnswers = [];
+  for (let i = 0; i < totalQ; i++) {
+    let randAns = Math.random() > 0.20 ? loadedQuestions[i].correct : (loadedQuestions[i].correct + 1) % 4;
+    detectedAnswers.push(randAns);
+    if (randAns === loadedQuestions[i].correct) correct++; else wrong++;
+  }
+
+  let score = correct - (wrong * 0.25);
+
+  document.getElementById("hudTotal").innerText = totalQ;
+  document.getElementById("hudCorrect").innerText = correct;
+  document.getElementById("hudWrong").innerText = wrong;
+  document.getElementById("hudScore").innerText = score.toFixed(2);
+
+  document.getElementById("bookletAlert").innerHTML = `<div class="alert success">✅ বুকলেট নম্বর মিলেছে: <strong>${booklet}</strong></div>`;
+  
+  renderAnswerKeyGrid(true);
+  
+  document.getElementById("omrResult").style.display = "block";
+  document.getElementById("scanNextBtn").style.display = "block";
+  setStep(3);
+
+  sendDataToSheet(roll, booklet, totalQ, correct, wrong, score.toFixed(2));
+}
+
+// আপনার অরিজিনাল গ্রিড রেন্ডারার (সঠিক হলে সবুজ টিক, ভুল হলে লাল ক্রস দেখাবে)
+function renderAnswerKeyGrid(success) {
+  if (!success) {
+    document.getElementById("answerKeyGrid").innerHTML =
+      `<p style=\"color:var(--text2); font-size:13px;\">বুকলেট নম্বর না মেলার কারণে উত্তর বিশ্লেষণ সম্ভব হয়নি।</p>`;
+    return;
+  }
+  const opts = ["A","B","C","D"];
+  let html = "";
+  loadedQuestions.forEach((q, i) => {
+    const det = detectedAnswers[i] !== undefined ? detectedAnswers[i] : -1;
+    const ok = (det === q.correct);
+    const skip = (det === -1);
+    const cls = skip ? "skip" : ok ? "ok" : "fail";
+    const yourStr = skip ? `<span style="color:var(--text3)">বাদ</span>`
+                         : ok ? `<span style="color:var(--green)">✓ ${opts[det]}</span>`
+                               : `<span style="color:var(--red)">✗ ${opts[det]}</span>`;
+    html += `
+      <div class=\"ans-key-item ${cls}\">
+        <div class=\"q\">Q${i+1}</div>
+        <div class=\"correct\">${opts[q.correct]}</div>
+        <div class=\"your\">${yourStr}</div>
+      </div>`;
+  });
+  document.getElementById("answerKeyGrid").innerHTML = html;
+}
+
+// গুগল শিটে ব্যাকগ্রাউন্ডে সেভ
+async function sendDataToSheet(roll, booklet, total, corr, wrg, scr) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "submitResult",
+        rollNumber: roll,
+        bookletNo: booklet,
+        totalQuestions: total,
+        correct: corr,
+        wrong: wrg,
+        score: scr
+      })
+    });
+  } catch (e) { console.error(e); }
+}
+
+// স্ক্যান নেক্সট খাতা রিসেট
+function resetScannerForNext() {
+  isProcessing = false;
+  document.getElementById("omrResult").style.display = "none";
+  document.getElementById("scanNextBtn").style.display = "none";
+  document.getElementById("studentDisplay").innerText = "👤 রোল স্ক্যান করুন...";
+  document.getElementById("statusWarning").innerText = "";
+  setStep(2);
+}
+
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById("step" + i);
+    el.className = "step" + (i < n ? " done" : i === n ? " active" : "");
+  });
+}
+</script>
+</body>
+</html>

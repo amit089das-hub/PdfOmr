@@ -2,8 +2,9 @@
 // Total Questions: 20 (GK, Math, Reasoning)
 // ৩০ মিনিট সময়
 
-window.currentMockTestBookletNo = "649761";
 window.currentMockTestData = [
+bookletNo: "554411", // এক্সামিনার এখানে নিজের ইচ্ছেমতো ইউনিক ৬ ডিজিট দেবেন
+    examName: "mock test fast"
     // ==========================================
     // ১. GENERAL KNOWLEDGE & SCIENCE (জিকে ও বিজ্ঞান)
     // ==========================================

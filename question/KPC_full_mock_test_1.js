@@ -2,7 +2,6 @@
 // Total Marks: 85 | Time: 60 Minutes
  // ১ ঘণ্টা
 
-window.currentMockTestBookletNo = "970482";
 window.currentMockTestData = [
     // [GENERAL KNOWLEDGE & CURRENT AFFAIRS - 25 Questions]
     { question: "পশ্চিমবঙ্গের দীর্ঘতম নদী কোনটি?", options: ["ভাগীরথী-হুগলী", "দামোদর", "গঙ্গা", "তিস্তা"], correct: 2 },

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>পাইথন ওএমআর লাইভ স্ক্যানার</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #21253a;
+    --border: #2e3350;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', 'Noto Sans Bengali', sans-serif; min-height: 100vh; padding: 20px; }
+
+  .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); height: fit-content; }
+  .main-view { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 550px; position: relative; }
+
+  h2, h3 { margin-bottom: 15px; color: #fff; }
+  select, button { width: 100%; padding: 12px; background: var(--card); border: 1px solid var(--border); color: #fff; border-radius: 8px; margin-bottom: 15px; font-size: 14px; outline: none; }
+  button { background: var(--accent); cursor: pointer; font-weight: 600; border: none; transition: 0.2s; }
+  button:hover { opacity: 0.9; }
+  button:disabled { background: #475569; cursor: not-allowed; opacity: 0.6; }
+
+  .scanner-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; }
+  .scanner-container { position: relative; width: 640px; height: 480px; max-width: 95vw; background: #000; border-radius: var(--radius); overflow: hidden; border: 3px solid var(--accent); }
+  video, #liveOverlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  #liveOverlayCanvas { z-index: 10; pointer-events: none; }
+
+  .scanner-controls { margin-top: 20px; }
+  .close-btn { background: var(--red); padding: 10px 25px; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; }
+  
+  .status-text { color: var(--accent); font-weight: bold; margin-bottom: 15px; font-size: 15px; text-align: center; }
+  .preview-box { width: 100%; max-width: 440px; background: var(--card); border-radius: var(--radius); padding: 10px; text-align: center; border: 1px solid var(--border); margin-top: 10px; display: none; }
+  #outputCanvas { width: 100%; height: auto; display: block; border-radius: 6px; background: #fff; }
+</style>
+
+<!-- প্রশ্ন ফোল্ডার থেকে ফাইল লিস্ট স্ক্রিপ্ট কল করা হয়েছে -->
+<script src="question/file-list.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="panel">
+    <h2>⚙️ ওএমআর কন্ট্রোল প্যানেল</h2>
+    
+    <label style="font-size: 13px; color: var(--text2); display: block; margin-bottom: 5px;">মক টেস্ট নির্বাচন করুন:</label>
+    <select id="mockTestSelect" onchange="loadSelectedMockTest()"></select>
+
+    <div id="examInfoBox" style="background: var(--card); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed var(--border); font-size: 13px; display: none;">
+      টার্গেট বুকলেট নম্বর: <strong id="targetBookletLabel" style="color: var(--accent);">N/A</strong><br>
+      মোট প্রশ্ন সংখ্যা: <strong id="totalQuestionsLabel" style="color: var(--accent2);">0</strong>
+    </div>
+
+    <button id="startScanBtn" disabled style="background: var(--accent2);">📷 ওএমআর ব্যাক ক্যামেরা খুলুন</button>
+    <button id="submitResultBtn" style="background: var(--green); display:none; margin-top: 10px;" onclick="sendDataToGoogleSheet()">📤 ডাটাবেজে সেভ করুন</button>
+    
+    <div id="summaryReport"></div>
+  </div>
+
+  <div class="main-view">
+    <div id="cvStatus" class="status-text">✅ ওএমআর ইঞ্জিন রেডি। মক টেস্ট সিলেক্ট করুন।</div>
+    <h3 id="previewTitle" style="align-self: flex-start; display: none;">🖼️ পাইথন লাইভ মার্কিং আউটপুট (৫০০x৭০০)</h3>
+    
+    <div class="preview-box" id="previewBox">
+       <canvas id="outputCanvas" width="500" height="700"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="scanner-modal" id="scannerModal">
+  <div class="status-text" id="scannerInstruction" style="color: #fff; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px;">
+    ওএমআর শিটের ৪ কোণার মার্কারটি ফ্রেমের সোজা রাখুন এবং স্ট্যাবিল থাকুন
+  </div>
+  <div class="scanner-container">
+    <video id="videoFeed" autoplay playsinline muted></video>
+    <canvas id="liveOverlayCanvas"></canvas>
+  </div>
+  <div class="scanner-controls">
+    <button class="close-btn" onclick="closeScanner()">❌ বন্ধ করুন</button>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSSx4X81dBk27a5Cm3DnbXNHaSKXNEOLUleHPL-t6Q0avmSy80gCpPuXxbbu1QkOEj/exec";
+
+// ⚠️ মোবাইলে টেস্ট করার সময় 127.0.0.1 এর জায়গায় আপনার পিসির IPv4 বসাবেন। 
+// যেমন: "http://192.168.0.105:5000/scan-omr"
+const PYTHON_API_URL = "http://10.250.157.245:5000/scan-omr"; 
+
+let mockQuestions = [];
+let targetBooklet = "";
+let localStream = null;
+let finalResultPayload = null;
+let captureTimeout = null;
+
+// question/file-list.js থেকে ড্রপডাউন জেনারেট করার ফাংশন
+function initMockDropdown() {
+    const select = document.getElementById('mockTestSelect');
+    select.innerHTML = '<option value="">-- পরীক্ষা বাছুন --</option>';
+    if(window.availableMockTests) {
+        window.availableMockTests.forEach(fileName => {
+            let op = document.createElement('option');
+            op.value = "question/" + fileName; // ব্যাকএন্ড পাথে question ফোল্ডার যুক্ত হবে
+            
+            let displayName = fileName.replace('.js', '').replace(/_/g, ' ');
+            op.innerText = displayName;
+            select.appendChild(op);
+        });
+    }
+}
+initMockDropdown();
+
+// প্রশ্নপত্র ডাইনামিকালি লোড করার ফাংশন
+function loadSelectedMockTest() {
+    const filePath = document.getElementById('mockTestSelect').value;
+    if(!filePath) return;
+    const old = document.getElementById('mock-data-script');
+    if(old) old.remove();
+
+    const script = document.createElement('script');
+    script.id = 'mock-data-script';
+    script.src = filePath; 
+    script.onload = () => {
+        if(window.currentMockTestData) {
+            if(Array.isArray(window.currentMockTestData)) {
+                mockQuestions = window.currentMockTestData;
+                targetBooklet = "123456"; 
+            } else {
+                targetBooklet = window.currentMockTestData.bookletNo || "123456";
+                mockQuestions = window.currentMockTestData.questions || [];
+            }
+            document.getElementById('targetBookletLabel').innerText = targetBooklet;
+            document.getElementById('totalQuestionsLabel').innerText = mockQuestions.length;
+            document.getElementById('examInfoBox').style.display = 'block';
+            document.getElementById('startScanBtn').disabled = false;
+            document.getElementById('cvStatus').innerText = "📊 মক টেস্ট সফলভাবে লোড হয়েছে।";
+        }
+    };
+    script.onerror = () => {
+        alert("ভুল: ফাইলটি লোড করা যায়নি! পাথ চেক করুন: " + filePath);
+    };
+    document.body.appendChild(script);
+}
+
+// মোবাইল ক্যামেরার ব্যাক বা রিয়ার ক্যামেরা ওপেন করার মেথড
+document.getElementById('startScanBtn').onclick = async function() {
+    document.getElementById('scannerModal').style.display = 'flex';
+    const video = document.getElementById('videoFeed');
+    
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" }, width: 1280, height: 720 }
+        });
+        video.srcObject = localStream;
+        video.onloadedmetadata = () => {
+            video.play();
+            // ক্যামেরা ফোকাস করার জন্য ৩ সেকেন্ড সময় দিয়ে অটো ক্যাপচার করবে
+            captureTimeout = setTimeout(captureFrameAndSend, 3000);
+        };
+    } catch (err) {
+        alert("ক্যামেরা এক্সেস করা যায়নি: " + err.message);
+        closeScanner();
+    }
+};
+
+function closeScanner() {
+    document.getElementById('scannerModal').style.display = 'none';
+    if(captureTimeout) clearTimeout(captureTimeout);
+    if(localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+}
+
+function captureFrameAndSend() {
+    const video = document.getElementById('videoFeed');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    document.getElementById('scannerInstruction').innerText = "⏳ পাইথন ইঞ্জিনে ওএমআর মূল্যায়ন চলছে...";
+    
+    canvas.toBlob(async (blob) => {
+        closeScanner();
+        
+        const formData = new FormData();
+        formData.append("image", blob, "omr.jpg");
+        formData.append("questions", JSON.stringify(mockQuestions));
+
+        try {
+            document.getElementById('cvStatus').innerText = "⏳ পাইথন প্রসেসিং রেসপন্সের অপেক্ষা...";
+            const response = await fetch(PYTHON_API_URL, { method: "POST", body: formData });
+            const result = await response.json();
+            
+            if(result.status === "success") {
+                renderOMROutput(blob, result);
+            } else {
+                alert("ত্রুটি: " + result.message);
+                document.getElementById('cvStatus').innerText = "❌ মূল্যায়ন ব্যর্থ।";
+            }
+        } catch (err) {
+            alert("পাইথন সার্ভার অফলাইন বা আইপি অ্যাড্রেস ভুল! সার্ভার চেক করুন।");
+        }
+    }, 'image/jpeg', 0.9);
+}
+
+function renderOMROutput(originalBlob, data) {
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        ctx.clearRect(0,0,500,700);
+        ctx.drawImage(img, 0, 0, 500, 700);
+        
+        // পাইথনের পাঠানো বাবল কোঅর্ডিনেট অনুযায়ী সঠিক/ভুল রিং আঁকা
+        data.rings.forEach(ring => {
+            ctx.beginPath();
+            ctx.arc(ring.x, ring.y, 6.5, 0, 2 * Math.PI);
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = ring.color === "green" ? "#22c55e" : (ring.color === "yellow" ? "#f59e0b" : "#ef4444");
+            ctx.stroke();
+        });
+        
+        document.getElementById('previewTitle').style.display = 'block';
+        document.getElementById('previewBox').style.display = 'block';
+        
+        document.getElementById('summaryReport').innerHTML = `
+            <div style="background:var(--card); padding:15px; border-radius:8px; border:1px solid var(--border); margin-top:20px;">
+               <h3 style="color:#fff; font-size:15px; margin-bottom:8px;">📊 পাইথন অটো-ডিটেকশন সামারি</h3>
+               <p style="color:var(--accent); font-size:14px; margin-bottom:4px;">👤 রোল নম্বর: ${data.rollNumber}</p>
+               <p style="color:var(--accent2); font-size:14px; margin-bottom:4px;">📖 বুকলেট নম্বর: ${data.bookletNo}</p>
+               <p style="color:var(--green); font-size:14px; margin-bottom:4px; border-top:1px solid var(--border); padding-top:6px;">✓ সঠিক উত্তর: ${data.correct}</p>
+               <p style="color:var(--red); font-size:14px; margin-bottom:4px;">✗ ভুল উত্তর: ${data.wrong}</p>
+               <p style="color:var(--yellow); font-size:14px; margin-bottom:4px;">⚠ বাদ পড়েছে: ${data.blank}</p>
+               <p style="color:#fff; font-size:16px; font-weight:bold; border-top:1px dashed var(--border); padding-top:8px; margin-top:6px;">🏆 ফাইনাল স্কোর: ${data.score}</p>
+            </div>`;
+            
+        if(data.bookletNo !== targetBooklet) {
+            alert(`⚠️ বুকলেট নম্বর মেলেনি!\nখাতায় প্রাপ্ত: ${data.bookletNo}\nপরীক্ষার আসল বুকলেট: ${targetBooklet}`);
+        }
+        
+        finalResultPayload = {
+            action: "submitResult",
+            rollNumber: data.rollNumber,
+            bookletNo: data.bookletNo,
+            totalQuestions: data.totalQuestions,
+            correct: data.correct,
+            wrong: data.wrong,
+            score: data.score
+        };
+        
+        document.getElementById('submitResultBtn').style.display = 'block';
+        document.getElementById('cvStatus').innerText = "🎉 খাতা মূল্যায়ন সম্পন্ন হয়েছে!";
+    };
+    img.src = URL.createObjectURL(originalBlob); 
+}
+
+async function sendDataToGoogleSheet() {
+    if(!finalResultPayload) return;
+    const saveBtn = document.getElementById('submitResultBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerText = "শিটে সেভ হচ্ছে...";
+    
+    try {
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify(finalResultPayload)
+        });
+        alert("🎉 শিক্ষার্থীর প্রাপ্ত নাম্বার সফলভাবে গুগল শিটে ব্যাকআপ নেওয়া হয়েছে!");
+        saveBtn.style.display = 'none';
+    } catch (error) {
+        alert("গুগল শিটে ডাটা পাঠানো যায়নি।");
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "📤 ডাটাবেজে সেভ করুন";
+    }
+}
+</script>
+</body>
+</html>

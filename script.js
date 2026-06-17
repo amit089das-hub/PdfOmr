@@ -1,7 +1,8 @@
-// গলোবাল ডেটা স্টোরেজ ভেরিয়েবল
-let loadedQuestions  = [];
-let currentBookletNo = ""; // PDF/OMR generate-এ ব্যবহৃত
-let loadedBookletNo  = ""; // question file load হওয়ার সময় capture - stale হবে না // ২ নম্বর রিকোয়ারমেন্ট: ইন্ট্রোডাকশন এবং OMR-এ একই সিরিয়াল রাখার জন্য গ্লোবাল ভেরিয়েবল
+// ==========================================
+// ১. গলোবাল ডেটা স্টোরেজ ভেরিয়েবল
+// ==========================================
+let loadedQuestions = [];
+let currentBookletNo = ""; 
 
 const languageMap = {
     bn: "বাংলা (Bengali)",
@@ -10,22 +11,27 @@ const languageMap = {
     or: "ওড়িয়া (Oriya)"
 };
 
-function toggleOMROptions() {
-    const showOMR = document.getElementById('showOMR');
-    const container = document.getElementById('omrOptionsContainer');
-    if (showOMR && container) {
-        container.style.display = showOMR.checked ? 'block' : 'none';
-    }
-}
+// ==========================================
+// ২. সমস্ত কোর ইউটিলিটি ফাংশনস (সবার আগে ডিফাইন করা হলো)
+// ==========================================
 
 // ৬ ডিজিটের র্যান্ডম বুকলেট নাম্বার মেকার
 function generateRandomBookletNo() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// ৪ ডিজিটের র্যান্ডম ইউনিক আইডি মেকার
+// ৪ ডিজিটের র্যান্ডম ইউনিক আইডি মেকার (ইন্ট্রোডাকশন পেজের বারকোডের জন্য)
 function generateUniqueID() {
     return "ID-" + Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+// ওএমআর অপশন টগল করার ফাংশন
+function toggleOMROptions() {
+    const showOMR = document.getElementById('showOMR');
+    const container = document.getElementById('omrOptionsContainer');
+    if (showOMR && container) {
+        container.style.display = showOMR.checked ? 'block' : 'none';
+    }
 }
 
 // মক টেস্ট ফাইল নেম থেকে ছোট শর্টকোড বানানোর ফাংশন
@@ -35,6 +41,9 @@ function getMockTestShortCode(fileName) {
     return cleanName.substring(0, 15).toUpperCase();
 }
 
+// ==========================================
+// ৩. পেজ লোড ও মক টেস্ট ড্রপডাউন ইনিশিয়ালাইজেশন
+// ==========================================
 document.addEventListener("DOMContentLoaded", function() {
     const selectMenu = document.getElementById('mockTestSelect');
     if (window.availableMockTests && window.availableMockTests.length > 0) {
@@ -51,36 +60,58 @@ document.addEventListener("DOMContentLoaded", function() {
     toggleOMROptions();
 });
 
+// ==========================================
+// ৪. ডাইনামিক স্ক্রিপ্ট ও মক টেস্ট ডাটা লোডিং ফাংশন
+// ==========================================
 function loadMockTestScript() {
     const selectMenu = document.getElementById('mockTestSelect');
     if (!selectMenu || !selectMenu.value) return;
 
     let fileName = selectMenu.value;
+    
+    // নিখুঁত পাথ হ্যান্ডলিং: ফাইলটি question/ দিয়ে শুরু না হলে তা যোগ হবে
     if (!fileName.startsWith('question/')) {
         fileName = 'question/' + fileName;
     }
     
+    // পুরনো স্ক্রিপ্ট মেমরি থেকে সম্পূর্ণ রিমুভ করা
     const oldScript = document.getElementById('dynamicTestScript');
     if (oldScript) oldScript.remove();
 
+    // নতুন স্ক্রিপ্ট ট্যাগ তৈরি
     const script = document.createElement('script');
     script.id = 'dynamicTestScript';
     script.src = fileName; 
 
     script.onload = function() {
+        // ফাইল সফলভাবে লোড হওয়ার পর ডাটা স্ট্রাকচার রিড করার লজিক
         if (window.currentMockTestData) {
-            loadedQuestions = window.currentMockTestData;
-            // question file load হওয়ার সাথে সাথেই bookletNo capture করো
-            loadedBookletNo = window.currentMockTestBookletNo || "";
+            // ১. যদি ডাটা সরাসরি একটি অ্যারে হয়
+            if (Array.isArray(window.currentMockTestData)) {
+                loadedQuestions = window.currentMockTestData;
+                currentBookletNo = generateRandomBookletNo(); 
+            } 
+            // ২. যদি ডাটা একটি অবজেক্ট হয় যার ভেতরে questions এবং bookletNo আলাদা করে দেওয়া আছে
+            else if (window.currentMockTestData.questions) {
+                loadedQuestions = window.currentMockTestData.questions;
+                currentBookletNo = window.currentMockTestData.bookletNo || generateRandomBookletNo();
+            } 
+            else {
+                alert('❌ ফাইলের ভেতরের অবজেক্টের স্ট্রাকচার সঠিক নয়!');
+                return;
+            }
+
+            // ল্যাঙ্গুয়েজ ড্রপডাউন সেটআপ
             detectAndSetupLanguages();
-            alert(`✅ ${selectMenu.value} সফলভাবে লোড হয়েছে! মোট প্রশ্ন: ${loadedQuestions.length}টি`);
+            
+            alert(`✅ ${selectMenu.value} সফলভাবে লোড হয়েছে!\nবুকলেট নম্বর: ${currentBookletNo}\nমোট প্রশ্ন: ${loadedQuestions.length}টি`);
         } else {
-            alert('❌ ফাইলে কোনো বৈধ মক টেস্ট ডেটা পাওয়া যায়নি!');
+            alert('❌ ফাইলে কোনো বৈধ মক টেস্ট ডেটা (window.currentMockTestData) পাওয়া যায়নি!');
         }
     };
 
     script.onerror = function() {
-        alert(`❌ মক টেস্ট ফাইলটি লোড করা যায়নি!\nপাথ চেক করুন: ${fileName}`);
+        alert(`❌ মক টেস্ট ফাইলটি লোড করা যায়নি!\nদয়া করে নিশ্চিত করুন আপনার ফাইলটি '${fileName}' পাথে উপস্থিত আছে কি না।`);
     };
 
     document.head.appendChild(script);
@@ -109,20 +140,15 @@ function detectAndSetupLanguages() {
     }
 }
 
-// মূল ভিউ জেনারেট করার ফাংশন
+// ==========================================
+// ৫. মূল ভিউ জেনারেট করার ফাংশন
+// ==========================================
 function generateView() {
     if (loadedQuestions.length === 0) {
-        alert("দয়া করে প্রথমে একটি মক টেস্ট সিলেক্ট করুন!");
+        alert("দয়া করে প্রথমে একটি মক টেস্ট সিলেক্ট করুন এবং লোড হওয়া পর্যন্ত অপেক্ষা করুন!");
         return;
     }
 
-    // সবসময় .js ফাইলের fixed booklet number ব্যবহার করবে
-    // loadedBookletNo হলো সেই question file load হওয়ার সময় capture করা number
-    if (!loadedBookletNo || loadedBookletNo === "") {
-        alert("❌ এই প্রশ্ন ফাইলে Booklet Number নেই!\nQuestion JS ফাইলের শুরুতে যোগ করুন:\nwindow.currentMockTestBookletNo = \"XXXXXX\";");
-        return;
-    }
-    currentBookletNo = loadedBookletNo;
     const uniqueID = generateUniqueID(); 
 
     const selectMenu = document.getElementById('mockTestSelect');
@@ -146,77 +172,6 @@ function generateView() {
 
     const negMarksEl = document.getElementById('negMarks');
     const negMarks = negMarksEl ? (negMarksEl.value || "0.25") : "0.25";
-
-    // ওয়াটার মার্ক
-    const watermarkEl = document.getElementById('watermarkText');
-    const watermarkText = watermarkEl ? watermarkEl.value.trim() : "";
-
-    // পুরনো watermark style সরাও
-    let wmStyle = document.getElementById('watermarkStyle');
-    if (wmStyle) wmStyle.remove();
-
-    if (watermarkText) {
-        const wmSafe = watermarkText.replace(/"/g,"'").replace(/\\/g,'\\\\');
-        wmStyle = document.createElement('style');
-        wmStyle.id = 'watermarkStyle';
-        wmStyle.textContent = `
-            /* সব পেজে watermark - intro, question, OMR সবখানে */
-            .exam-paper-page,
-            .intro-page-wrapper,
-            .omr-answer-sheet {
-                position: relative;
-                overflow: hidden;
-            }
-            /* কেন্দ্রে বড় ওয়াটার মার্ক - সব পেজ */
-            .exam-paper-page::before,
-            .intro-page-wrapper::before,
-            .omr-answer-sheet::before {
-                content: "${wmSafe}";
-                position: absolute;
-                top: 50%; left: 50%;
-                transform: translate(-50%, -50%) rotate(-42deg);
-                font-size: 80px;
-                font-weight: 900;
-                color: rgba(0,0,0,0.048);
-                white-space: nowrap;
-                pointer-events: none;
-                z-index: 0;
-                letter-spacing: 10px;
-                width: 160%;
-                text-align: center;
-                user-select: none;
-            }
-            /* তির্যক ওয়াটার মার্ক - সব পেজ */
-            .exam-paper-page::after,
-            .intro-page-wrapper::after,
-            .omr-answer-sheet::after {
-                content: "${wmSafe}     ${wmSafe}     ${wmSafe}";
-                position: absolute;
-                top: 15%; left: 50%;
-                transform: translate(-50%, 0) rotate(-42deg);
-                font-size: 36px;
-                font-weight: 700;
-                color: rgba(0,0,0,0.038);
-                white-space: nowrap;
-                pointer-events: none;
-                z-index: 0;
-                letter-spacing: 6px;
-                width: 200%;
-                text-align: center;
-                user-select: none;
-            }
-            /* প্রতিটি কন্টেন্টের z-index ঠিক রাখা */
-            .exam-paper-page .questions-grid,
-            .exam-paper-page .exam-header,
-            .exam-paper-page .exam-running-header,
-            .intro-page-wrapper > *,
-            .omr-answer-sheet > * {
-                position: relative;
-                z-index: 1;
-            }
-        `;
-        document.head.appendChild(wmStyle);
-    }
     
     const showIntroEl = document.getElementById('showIntro');
     const showIntro = showIntroEl ? showIntroEl.checked : true;
@@ -236,13 +191,10 @@ function generateView() {
 
     let finalHtml = "";
 
-    // ==========================================================================
-    // ১. ইন্ট্রোডাকশন পেজ জেনারেশন
-    // ==========================================================================
-        // ==========================================================================
-    // ১. ইন্ট্রোডাকশন পেজ জেনারেশন (আপডেটেড ফুটার সহ)
-    // ==========================================================================
+    // --- ১. ইন্ট্রোডাকশন পেজ জেনারেশন ---
     if (showIntro) {
+        let bookletDigits = currentBookletNo.toString().padStart(6, '0').split('');
+
         finalHtml += `
         <div class="intro-page-wrapper">
             <div class="intro-top-code">${mockShortCode}/2026</div>
@@ -261,7 +213,7 @@ function generateView() {
                 <div class="intro-serial-box">
                     <div class="serial-label">Question Booklet Serial No.</div>
                     <div class="serial-number-digits">
-                        ${currentBookletNo.split('').map(digit => `<span>${digit}</span>`).join('')}
+                        ${bookletDigits.map(digit => `<span>${digit}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -296,7 +248,6 @@ function generateView() {
                 </div>
             </div>
             
-            <!-- নতুন ও সুরক্ষিত ফুটার সেকশন -->
             <div class="intro-custom-footer">
                 <div class="intro-footer-date">14.06.2026</div>
                 <div class="intro-footer-page">Page 1</div>
@@ -306,10 +257,7 @@ function generateView() {
         `;
     }
 
-
-    // ==========================================================================
-    // ২. কোশ্চেন পেপার পেজ জেনারেশন
-    // ==========================================================================
+    // --- ২. কোশ্চেন পেপার পেজ জেনারেশন ---
     let examHtml = `<div class="exam-paper-page">`;
     
     if (!showIntro) {
@@ -362,9 +310,7 @@ function generateView() {
     examHtml += `</div></div>`;
     finalHtml += examHtml;
 
-    // ==========================================================================
-    // ৩. ওএমআর শিট জেনারেশন
-    // ==========================================================================
+    // --- ৩. ওএমআর শিট জেনারেশন ---
     if (showOMR) {
         let omrHtml = generateProfessionalOMR(loadedQuestions.length, coachingName, testName);
         if (omrDownloadType === "end") {
@@ -374,10 +320,8 @@ function generateView() {
         }
     }
 
-    // স্ক্রিনে ডাইনামিক HTML পুশ করা হলো
     printArea.innerHTML = finalHtml;
 
-    // HTML স্ক্রিনে বসার ঠিক পরেই MathJax কে কল করতে হবে
     if (window.MathJax && window.MathJax.typesetPromise) {
         MathJax.typesetPromise([printArea]).catch(function (err) {
             console.log("MathJax failed: " + err.message);
@@ -385,21 +329,16 @@ function generateView() {
     }
 }
 
-// ওএমআর শিট বানানোর ফাংশন
+// ==========================================
+// ৬. ওএমআর শিট জেনারেশন ফাংশন (৪টি মার্কার ও ব্ল্যাঙ্ক বাবল কলাম সহ)
+// ==========================================
 function generateProfessionalOMR(totalQ, coaching, test) {
-    // বর্তমান বুকলেট নম্বর (script.js-এর global থেকে)
-    const bookletDisplay = (typeof currentBookletNo !== 'undefined' && currentBookletNo)
-        ? currentBookletNo.split('').map(d => `<span>${d}</span>`).join('')
-        : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
-
     let html = `
-    <div class="omr-pro-page" style="position:relative;">
-
-        <!-- চার কোণার স্ক্যান মার্কার — Solid Square Box (A4 corner-এ) -->
-        <div style="position:absolute;top:0;left:0;width:38px;height:38px;background:#000;border-radius:0 0 4px 0;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
-        <div style="position:absolute;top:0;right:0;width:38px;height:38px;background:#000;border-radius:0 0 0 4px;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
-        <div style="position:absolute;bottom:0;left:0;width:38px;height:38px;background:#000;border-radius:0 4px 0 0;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
-        <div style="position:absolute;bottom:0;right:0;width:38px;height:38px;background:#000;border-radius:4px 0 0 0;display:flex;align-items:center;justify-content:center;z-index:10;"><div style="width:24px;height:24px;background:#fff;border-radius:1px;"></div></div>
+    <div class="omr-pro-page">
+        <div class="omr-fiducial-marker marker-top-left"></div>
+        <div class="omr-fiducial-marker marker-top-right"></div>
+        <div class="omr-fiducial-marker marker-bottom-left"></div>
+        <div class="omr-fiducial-marker marker-bottom-right"></div>
 
         <div class="omr-pro-header">
             <h2>${coaching}</h2>
@@ -441,17 +380,15 @@ function generateProfessionalOMR(totalQ, coaching, test) {
 
             <div class="omr-grids-right">
                 <div class="number-bubble-structure">
-                    <div class="omr-box-title" style="text-align:center;">BOOKLET NO.</div>
+                    <div class="omr-box-title">BOOKLET NO.</div>
                     <div class="num-digit-boxes">
-                        ${(typeof currentBookletNo !== 'undefined' && currentBookletNo
-                            ? currentBookletNo.split('')
-                            : ['','','','','',''])
-                          .map(d => `<div class="digit-box" style="font-weight:bold;font-size:14px;color:#000;">${d}</div>`).join('')}
+                        <div class="digit-box"></div><div class="digit-box"></div><div class="digit-box"></div>
+                        <div class="digit-box"></div><div class="digit-box"></div><div class="digit-box"></div>
                     </div>
                     <div class="num-bubble-columns">`;
-                        for(let row=0; row<10; row++) {
-                            html += `<div class="bubble-row-line">`;
-                            for(let col=0; col<6; col++) {
+                        for(let col=0; col<6; col++) {
+                            html += `<div class="bubble-column-item">`;
+                            for(let row=0; row<10; row++) {
                                 html += `<div class="omr-grid-circle">${row}</div>`;
                             }
                             html += `</div>`;
@@ -460,15 +397,15 @@ function generateProfessionalOMR(totalQ, coaching, test) {
                 </div>
 
                 <div class="number-bubble-structure">
-                    <div class="omr-box-title" style="text-align:center;">ROLL NUMBER</div>
+                    <div class="omr-box-title">ROLL NUMBER</div>
                     <div class="num-digit-boxes">
                         <div class="digit-box"></div><div class="digit-box"></div><div class="digit-box"></div>
                         <div class="digit-box"></div><div class="digit-box"></div><div class="digit-box"></div>
                     </div>
                     <div class="num-bubble-columns">`;
-                        for(let row=0; row<10; row++) {
-                            html += `<div class="bubble-row-line">`;
-                            for(let col=0; col<6; col++) {
+                        for(let col=0; col<6; col++) {
+                            html += `<div class="bubble-column-item">`;
+                            for(let row=0; row<10; row++) {
                                 html += `<div class="omr-grid-circle">${row}</div>`;
                             }
                             html += `</div>`;

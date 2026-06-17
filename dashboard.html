@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>অ্যাডমিন রেজাল্ট ড্যাশবোর্ড</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --border: #2e3350;
+            --accent: #3b82f6;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', 'Noto Sans Bengali', sans-serif;
+            margin: 0; padding: 30px;
+        }
+
+        .dashboard-container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+        }
+
+        .header h1 { font-size: 24px; color: #fff; margin-bottom: 5px; }
+        .header p { color: var(--text-muted); font-size: 14px; }
+
+        .search-box-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+        }
+
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover { background: #2563eb; }
+
+        .table-responsive {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #222533;
+            color: var(--text-muted);
+            padding: 14px 16px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            color: #cbd5e1;
+        }
+
+        tr:last-child td { border: none; }
+        tr:hover { background: #222636; }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-success { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        
+        .no-data {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h1>📊 অ্যাডমিন মক টেস্ট রেজাল্ট ড্যাশবোর্ড</h1>
+        <p>যেকোনো মক টেস্টের বুকলেট নম্বর দিয়ে লাইভ রেজাল্ট শিট ফিল্টার করুন</p>
+    </div>
+
+    <div class="search-box-wrapper">
+        <input type="text" id="bookletSearch" placeholder="🔍 বুকলেট নম্বরটি লিখুন... (যেমন: 123456)">
+        <button onclick="fetchResults()">ম্যাজিক সার্চ 🚀</button>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>রোল নম্বর</th>
+                    <th>স্টুডেন্ট নাম</th>
+                    <th>মোবাইল নম্বর</th>
+                    <th>মোট প্রশ্ন</th>
+                    <th>সঠিক উত্তর</th>
+                    <th>ভুল উত্তর</th>
+                    <th>প্রাপ্ত নম্বর</th>
+                </tr>
+            </thead>
+            <tbody id="resultTableBody">
+                <tr>
+                    <td colspan="7" class="no-data">বুকলেট নম্বর লিখে সার্চ করুন। ডেটা এখানে প্রদর্শিত হবে।</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // আপনার জেনারেট হওয়া Google Apps Script Web App URL-টি এখানে বসান
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSSx4X81dBk27a5Cm3DnbXNHaSKXNEOLUleHPL-t6Q0avmSy80gCpPuXxbbu1QkOEj/exec"; 
+
+    async function fetchResults() {
+        const bookletNo = document.getElementById("bookletSearch").value.trim();
+        const tbody = document.getElementById("resultTableBody");
+        
+        if(!bookletNo) {
+            alert("অনুগ্রহ করে একটি বুকলেট নম্বর লিখুন!");
+            return;
+        }
+
+        tbody.innerHTML = `<tr><td colspan="7" class="no-data">গুগল শিট থেকে তথ্য খোঁজা হচ্ছে, দয়া করে অপেক্ষা করুন...</td></tr>`;
+
+        try {
+            const url = `${SCRIPT_URL}?action=getDashboardData&bookletNo=${bookletNo}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="no-data">❌ এই বুকলেট নম্বরের কোনো পরীক্ষার ডেটা পাওয়া যায়নি!</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = ""; // আগের মেসেজ ক্লিয়ার করা
+            
+            data.forEach(row => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${row.rollNumber}</strong></td>
+                        <td>${row.name}</td>
+                        <td>${row.mobile}</td>
+                        <td>${row.totalQuestions}</td>
+                        <td><span class="badge badge-success">+ ${row.correct}</span></td>
+                        <td><span class="badge badge-danger">- ${row.wrong}</span></td>
+                        <td><strong>${row.score}</strong></td>
+                    </tr>
+                `;
+            });
+
+        } catch (error) {
+            console.error("Error:", error);
+            tbody.innerHTML = `<tr><td colspan="7" class="no-data" style="color:#f87171;">দুঃখিত! ডেটা লোড করার সময় সার্ভারে সমস্যা হয়েছে।</td></tr>`;
+        }
+    }
+</script>
+
+</body>
+</html>

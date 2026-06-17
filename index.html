@@ -4,41 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>প্রফেশনাল এক্সাম কোশ্চেন মেকার ও ওএমআর জেনারেটর</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2e86de">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="style.css">
     <script>
-        window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
-        };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 </head>
 <body>
 
-<!-- Sidebar Overlay (backdrop) -->
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
-<!-- Top Bar -->
-<div class="app-topbar no-print">
-    <button class="app-topbar-toggle" onclick="toggleSidebar()" title="মেনু">☰</button>
-    <span class="app-topbar-title">📋 Exam Question Maker</span>
-</div>
-
-    <div class="sidebar no-print" id="sidebar">
-        <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
+    <div class="sidebar no-print">
         <h2>📋 Controlling Panel</h2>
-
-        <div class="form-group" style="margin-top:10px; margin-bottom:20px; border-bottom:1px dashed #57606f; padding-bottom:15px;">
-            <a href="omr-evaluator.html" target="_blank" class="print-btn"
-               style="background:#10ac84; text-decoration:none; display:block; text-align:center;
-                      color:white; line-height:40px; height:40px; border-radius:4px; font-weight:bold;">
-                🔍 AI OMR Checker খুলুন
-            </a>
-        </div>
-
+        
         <div class="form-group">
             <label for="mockTestSelect">মক টেস্ট সিলেক্ট করুন:</label>
             <select id="mockTestSelect" onchange="loadMockTestScript()">
@@ -66,25 +45,19 @@
             <input type="text" id="testName" value="Kolkata Police Constable Mock Test - 01" placeholder="যেমন: KP Constable Mock-1">
         </div>
 
-        <div class="intro-settings" style="margin-bottom:15px;">
-            <div class="form-group" style="margin-bottom:10px;">
+        <div class="intro-settings" style="margin-bottom: 15px;">
+            <div class="form-group" style="margin-bottom: 10px;">
                 <label for="totalMarks">মোট নম্বর (Full Marks):</label>
                 <input type="text" id="totalMarks" value="85">
             </div>
-            <div class="form-group" style="margin-bottom:10px;">
-                <label for="examTime">পরীক্ষার সময় (Duration):</label>
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label for="examTime">পরীক্ষার সময় (Duration):</label>
                 <input type="text" id="examTime" value="১ ঘণ্টা">
             </div>
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom: 0;">
                 <label for="negMarks">নেগেটিভ মার্কিং (Negative):</label>
                 <input type="text" id="negMarks" value="0.25">
             </div>
-        </div>
-
-        <div class="form-group" style="border: 1px dashed #e67e22; padding:10px; border-radius:5px; margin-bottom:15px;">
-            <label for="watermarkText" style="color:#e67e22;">💧 ওয়াটার মার্ক টেক্সট:</label>
-            <input type="text" id="watermarkText" placeholder="যেমন: PATHSHALA COACHING" style="border-color:#e67e22;">
-            <small style="color:#aaa; font-size:11px; display:block; margin-top:5px;">প্রশ্নের প্রতি পেজে তির্যকভাবে ওয়াটার মার্ক পড়বে</small>
         </div>
 
         <div class="form-group row-group">
@@ -94,22 +67,22 @@
 
         <div class="form-group row-group">
             <input type="checkbox" id="showAnswers">
-            <label for="showAnswers" style="color:#2ecc71; font-weight:bold;">সঠিক উত্তর হাইলাইট করুন (Answer Key)</label>
+            <label for="showAnswers" style="color: #2ecc71; font-weight: bold;">সঠিক উত্তর হাইলাইট করুন (Answer Key)</label>
         </div>
 
-        <div class="form-group row-group" style="margin-bottom:10px;">
+        <div class="form-group row-group" style="margin-bottom: 10px;">
             <input type="checkbox" id="showOMR" onchange="toggleOMROptions()">
-            <label for="showOMR" style="color:#00d2d3; font-weight:bold;">ওএমআর (OMR) শিট যুক্ত করুন</label>
+            <label for="showOMR" style="color: #00d2d3; font-weight: bold;">ওএমআর (OMR) শিট যুক্ত করুন</label>
         </div>
 
-        <div id="omrOptionsContainer" style="display:none; padding-left:10px; border-left:1px dashed #57606f; margin-bottom:15px;">
-            <div class="form-group row-group" style="margin-bottom:8px;">
+        <div id="omrOptionsContainer" style="display: none; padding-left: 10px; border-left: 1px dashed #57606f; margin-bottom: 15px;">
+            <div class="form-group row-group" style="margin-bottom: 8px;">
                 <input type="radio" id="omrAtEnd" name="omrDownloadType" value="end" checked>
-                <label for="omrAtEnd" style="font-size:12.5px; color:#ced6e0; cursor:pointer;">Append at the end of Exam PDF</label>
+                <label for="omrAtEnd" style="font-size: 12.5px; color: #ced6e0; cursor: pointer;">Append at the end of Exam PDF</label>
             </div>
-            <div class="form-group row-group" style="margin-bottom:0;">
+            <div class="form-group row-group" style="margin-bottom: 0;">
                 <input type="radio" id="omrSeparate" name="omrDownloadType" value="separate">
-                <label for="omrSeparate" style="font-size:12.5px; color:#ced6e0; cursor:pointer;">Generate OMR Separately</label>
+                <label for="omrSeparate" style="font-size: 12.5px; color: #ced6e0; cursor: pointer;">Generate OMR Separately</label>
             </div>
         </div>
 
@@ -119,41 +92,14 @@
 
     <div class="main-content">
         <div class="print-container" id="printArea">
-            <div style="text-align:center; color:#7f8c8d; margin-top:100px;">
+            <div style="text-align: center; color: #7f8c8d; margin-top: 100px;">
                 <h3>⚠️ কোনো মক টেস্ট লোড করা নেই!</h3>
-                <p>দয়া করে বামদিকের প্যানেল থেকে একটি পরীক্ষা সিলেক্ট করে "প্রিভিউ দেখুন" বাটনে ক্লিক করুন।</p>
+                <p>দয়া করে বামদিকের প্যানেল থেকে একটি পরীক্ষা সিলেক্ট করে "প্রিভিউ দেখুন" বাটনে ক্লিক করুন।</p>
             </div>
         </div>
     </div>
 
     <script src="question/file-list.js"></script>
     <script src="script.js"></script>
-    <script>
-    function toggleSidebar() {
-        const sb = document.getElementById('sidebar');
-        const ov = document.getElementById('sidebarOverlay');
-        if (sb) sb.classList.toggle('open');
-        if (ov) ov.classList.toggle('open');
-    }
-    function closeSidebar() {
-        const sb = document.getElementById('sidebar');
-        const ov = document.getElementById('sidebarOverlay');
-        if (sb) sb.classList.remove('open');
-        if (ov) ov.classList.remove('open');
-    }
-    // প্রিভিউ ও প্রিন্ট বাটনে ক্লিক করলে সাইডবার বন্ধ হবে
-    document.addEventListener('DOMContentLoaded', function() {
-        const origGenView = window.generateView;
-        if (typeof origGenView === 'function') {
-            window.generateView = function() { closeSidebar(); origGenView(); };
-        }
-    });
-    // PWA Service Worker Registration
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('SW registered:', reg.scope))
-            .catch(err => console.log('SW error:', err));
-    }
-    </script>
 </body>
 </html>

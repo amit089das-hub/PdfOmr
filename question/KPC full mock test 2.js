@@ -1,7 +1,6 @@
 // KOLKATA POLICE CONSTABLE MOCK TEST - SET 02
 // Total Marks: 85 | Time: 60 Minutes// ১ ঘণ্টা
 
-window.currentMockTestBookletNo = "396037";
 window.currentMockTestData = [
     // [GENERAL KNOWLEDGE & CURRENT AFFAIRS - 25 Questions]
     { question: "কলকাতা পুলিশের বর্তমান পুলিশ কমিশনার (Police Commissioner) কে?", options: ["বিনীত গোয়েল", "মনোজ কুমার ভার্মা", "রাজীব কুমার", "সৌমেন মিত্র"], correct: 1 },

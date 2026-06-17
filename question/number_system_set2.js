@@ -2,7 +2,6 @@
 // Total Questions: 84 (28 Types × 3 Questions Each)
 // Language: Bilingual (Bengali & English)
 
-window.currentMockTestBookletNo = "745690";
 window.currentMockTestData = [
     // ==========================================
     // CHAPTER 1: TYPES OF NUMBERS (সংখ্যার প্রকারভেদ)

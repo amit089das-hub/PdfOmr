@@ -3,7 +3,6 @@
 // Language: Bengali & English
 // Format: JavaScript Array Object
 
-window.currentMockTestBookletNo = "763673";
 window.currentMockTestData = [
     // ==========================================
     // ১. GENERAL CALCULATION & FRACTION BASED (সাধারণ গণনা এবং ভগ্নাংশ ভিত্তিক)

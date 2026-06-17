@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>নতুন স্টুডেন্ট এন্ট্রি ও রোল জেনারেটর</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --card: #21253a;
+            --border: #2e3350;
+            --accent: #22c55e;
+            --accent-hover: #16a34a;
+            --text: #e2e8f0;
+            --text2: #94a3b8;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', 'Noto Sans Bengali', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 30px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h2 {
+            font-size: 22px;
+            margin-bottom: 8px;
+            color: #fff;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text2);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--text2);
+        }
+
+        input[type="text"], input[type="tel"] {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #4f8ef7;
+            box-shadow: 0 0 0 2px rgba(79, 142, 247, 0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .result-box {
+            display: none;
+            background: var(--card);
+            border: 1px dashed var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .result-box h3 {
+            color: var(--accent);
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .roll-display {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            color: #fff;
+            margin: 10px 0;
+            background: var(--bg);
+            padding: 10px;
+            border-radius: 6px;
+            display: inline-block;
+            border: 1px solid var(--border);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎯 নতুন স্টুডেন্ট এন্ট্রি</h2>
+    <p class="subtitle">স্টুডেন্টের তথ্য দিয়ে ওয়ান-ক্লিকে রোল নম্বর জেনারেট করুন</p>
+
+    <form id="studentForm" onsubmit="registerStudent(event)">
+        <div class="form-group">
+            <label for="studentName">স্টুডেন্টের নাম:</label>
+            <input type="text" id="studentName" required placeholder="যেমন: Rahul Sharma">
+        </div>
+
+        <div class="form-group">
+            <label for="studentClass">ক্লাস / ব্যাচের নাম (নিজে লিখুন):</label>
+            <input type="text" id="studentClass" required placeholder="যেমন: Class 10 বা Batch A">
+        </div>
+
+        <div class="form-group">
+            <label for="studentMobile">মোবাইল নম্বর (১০ ডিজিট):</label>
+            <input type="tel" id="studentMobile" pattern="[0-9]{10}" required placeholder="যেমন: 9876543210">
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn">রোল তৈরি ও শিটে সেভ করুন 🚀</button>
+    </form>
+
+    <div class="result-box" id="resultBox">
+        <h3>✅ স্টুডেন্ট এন্ট্রি সফল হয়েছে!</h3>
+        <p style="font-size: 13px; color: var(--text2);">অটো-জেনারেটেড রোল নম্বর:</p>
+        <div class="roll-display" id="generatedRoll">------</div>
+        <p style="font-size: 13px; color: #22c55e; margin-top: 8px;">ডেটা সরাসরি গুগল শিটে সেভ করা হয়েছে।</p>
+    </div>
+</div>
+
+<script>
+    // ⚠️ আপনার Google Apps Script Web App URL-টি নিচে বসাবেন
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSSx4X81dBk27a5Cm3DnbXNHaSKXNEOLUleHPL-t6Q0avmSy80gCpPuXxbbu1QkOEj/exec";
+
+    function generate6DigitRoll() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    async function registerStudent(event) {
+        event.preventDefault();
+        
+        const nameInput = document.getElementById("studentName").value.trim();
+        const classInput = document.getElementById("studentClass").value.trim(); // টাইপ করা ক্লাস টেক্সট নেওয়া
+        const mobileInput = document.getElementById("studentMobile").value.trim();
+        const submitBtn = document.getElementById("submitBtn");
+        const resultBox = document.getElementById("resultBox");
+        const generatedRoll = document.getElementById("generatedRoll");
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "শিটে সেভ হচ্ছে, অপেক্ষা করুন...";
+        resultBox.style.display = "none";
+
+        const newRoll = generate6DigitRoll();
+
+        const payload = {
+            action: "registerStudent",
+            rollNumber: newRoll,
+            name: nameInput,
+            studentClass: classInput, 
+            mobile: mobileInput
+        };
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                cache: "no-cache",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            generatedRoll.innerText = newRoll;
+            resultBox.style.display = "block";
+            document.getElementById("studentForm").reset();
+
+        } catch (error) {
+            alert("দুঃখিত! ডেটা সেভ করার সময় কোনো সমস্যা হয়েছে।");
+            console.error("Error:", error);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "রোল তৈরি ও শিটে সেভ করুন 🚀";
+        }
+    }
+</script>
+
+</body>
+</html>
